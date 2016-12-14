@@ -10,6 +10,7 @@ Skeleton_tools
 import networkx as nx
 import numpy as np
 import os
+# import knossos_utils
 
 
 class VP_type(object):
@@ -18,10 +19,30 @@ class VP_type(object):
         self.phys = phys
 
 
+class SkeletonContainer(object):
+    """Collection of multiple skeleton objects."""
+
+    def __init__(self, skeletons):
+        self.skeleton_list = skeletons
+
+    def write_to_knossos_nml(self, outputfilename):
+        # TODO make a generic function that takes as an argument a function and applies it to all the
+        # skeletons in the list.
+        for skeleton in self.skeleton_list:
+            skeleton.fill_in_node_features('position_voxel')
+        knossos_utils.from_nx_graphs_to_knossos([skeleton.nx_graph for
+                                                 skeleton in self.skeleton_list],
+                                                outputfilename)
+
+
 class Skeleton(object):
     def __init__(self, identifier=None, voxel_size=None, seg_id=None, nx_graph=None):
 
         self.identifier = identifier
+        if isinstance(voxel_size, list):
+            voxel_size = np.array(voxel_size)
+        if voxel_size is not None:
+            assert voxel_size.shape[0] == 3
         self.voxel_size = voxel_size
         self.seg_id = seg_id
 
@@ -45,6 +66,8 @@ class Skeleton(object):
 
         """
         assert datapoints.shape[1] == 3
+        assert datapoints.shape[0] == len(np.unique(
+            np.array(edgelist))), 'number of nodes (extracted from edges) and provided coordinates do not match'
         # TODO: Add a function that allows to add many coordinates at once to an exisiting graph, but tricky
         # since how to handle the Node IDs.
         assert self.nx_graph.number_of_nodes() == 0, 'Graph is not empty, can not initialize a graph.'
@@ -87,6 +110,18 @@ class Skeleton(object):
         '''
         if 'direction' in node_feature_names:
             pass
+
+        if 'position_voxel' in node_feature_names:
+            # Complement the voxel
+            assert self.voxel_size is not None, 'can not convert positions into voxel space, since voxel size is not given'
+            self.nx_graph.node[node_id]['position'].voxel = (self.nx_graph.node[node_id][
+                                                                'position'].phys // self.voxel_size).astype(np.int)
+
+        if 'position_phys' in node_feature_names:
+            # Complement the voxel
+            assert self.voxel_size is not None, 'can not convert positions into phys space, since voxel size is not given'
+            self.nx_graph.node[node_id]['position'].phys = self.nx_graph.node[node_id][
+                                                               'position'].voxel * self.voxel_size
 
     def _add_edge_features(self, u, v, edge_feature_names=[]):
         '''

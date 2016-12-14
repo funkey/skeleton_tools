@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-from skeleton_tools import Skeleton, VP_type
+from skeleton_tools import Skeleton, VP_type, SkeletonContainer
 import networkx as nx
 from scipy.spatial import distance
 
@@ -76,5 +76,23 @@ class TestSkeletonTools(unittest.TestCase):
         exp_total_length = np.sqrt((15 ** 2) * 3)
         total_length = test_skeleton.calculate_total_phys_length()
         self.assertEqual(exp_total_length, total_length)
+
+    def test_writeToKnossos(self):
+        # Represents a branching skeleton. Not a real testfunction.
+        # TODO add test function, when also reading knossos files is possible.
+        test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
+        nodes_pos_phys = np.array([[0, 0, 0], [50., 50., 100.], [100., 100., 200.], [100., 100., 300.]])
+        edges = [(0, 1), (1, 2), (1, 3)]
+        test_skeleton.initialize_from_datapoints(nodes_pos_phys, vp_type_voxel=False, edgelist=edges)
+
+        test_skeleton2 = Skeleton(voxel_size=[10., 10., 20.])
+        nodes_pos_phys = np.array([[50., 50., 100.], [50., 50., 200.], [50., 50., 300.]])
+        edges = [(0, 1), (1, 2)]
+        test_skeleton2.initialize_from_datapoints(nodes_pos_phys, False, edgelist=edges)
+
+
+        skeleton_container = SkeletonContainer([test_skeleton, test_skeleton2])
+        skeleton_container.write_to_knossos_nml('testdata/knossostestfile.nml')
+
 
 
