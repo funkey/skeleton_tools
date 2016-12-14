@@ -79,7 +79,7 @@ class TestSkeletonTools(unittest.TestCase):
 
     def test_writeToKnossos(self):
         # Represents a branching skeleton. Not a real testfunction.
-        # TODO add test function, when also reading knossos files is possible.
+        # TODO add actual test function, when also reading knossos files is possible.
         test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
         nodes_pos_phys = np.array([[0, 0, 0], [50., 50., 100.], [100., 100., 200.], [100., 100., 300.]])
         edges = [(0, 1), (1, 2), (1, 3)]
