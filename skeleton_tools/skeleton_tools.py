@@ -35,6 +35,37 @@ class SkeletonContainer(object):
                                                 outputfilename)
 
 
+
+    def write_to_itk(self, outputfilename='data_test_itk', all_diameter_per_node=None, all_overwrite_existing=None):
+        """ Write all skeleton in container to itk format (see example file in skeleton_tools/test_data_itk.txt)
+
+        Parameters
+        ----------
+            outputfilename: string
+                path and name where to store file to, for ever skeleton its self.identifier is added, s.t. outputfilename_identifier.txt
+            all_diameter_per_node: List of numpy array, shape: [num_skeletons x [1 x number_of_nodes())], default: 2.*np.ones(self.nx_graph.number_of_nodes()) for every skeleton
+                array to define the diameter for every node. Represents the diameter shown in the viewer not the
+                actual diameter of the neuron.
+            overwrite_existing: list of bool, shape: [num_skeletons]
+                if True, overwrite existing file with the same name, if False: create new file or assertion error
+
+        """
+
+        for nr_skeleton, skeleton in enumerate(self.skeleton_list):
+            if all_diameter_per_node is None:
+                diameter_per_node = None
+            else:
+                diameter_per_node = all_diameter_per_node[nr_skeleton]
+
+            if all_overwrite_existing is None:
+                overwrite_existing = False
+            else:
+                overwrite_existing = all_overwrite_existing[nr_skeleton]
+
+            skeleton.write_to_itk(outputfilename=outputfilename+'_'+str(skeleton.identifier), diameter_per_node=diameter_per_node, overwrite_existing=overwrite_existing)
+
+
+
 class Skeleton(object):
     def __init__(self, identifier=None, voxel_size=None, seg_id=None, nx_graph=None):
 
@@ -234,6 +265,8 @@ class Skeleton(object):
         :param inputfilename:
         :return:
         '''
+
+
         return
 
     def calculate_total_phys_length(self):
