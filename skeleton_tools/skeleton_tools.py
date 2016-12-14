@@ -9,8 +9,8 @@ Skeleton_tools
 
 import networkx as nx
 import numpy as np
-from scipy.spatial import distance
-import knossos_utils
+import os
+# import knossos_utils
 
 
 class VP_type(object):
@@ -182,12 +182,50 @@ class Skeleton(object):
         '''
         return
 
-    def write_to_itk(self, outputfilename):
-        '''
+    def write_to_itk(self, outputfilename='data_test_itk', diameter_per_node=None, overwrite_existing=False):
+        """ Write skeleton to itk format (see example file in skeleton_tools/test_data_itk.txt)
 
-        :param outputfilename:
-        :return:
-        '''
+        Parameters
+        ----------
+            outputfilename: string
+                path and name where to store file to
+            diameter_per_node: numpy array, shape: [1 x number_of_nodes()), default: 2.*np.ones(self.nx_graph.number_of_nodes())
+                array to define the diameter for every node. Represents the diameter shown in the viewer not the
+                actual diameter of the neuron.
+            overwrite_existing: bool
+                if True, overwrite existing file with the same name, if False: create new file or assertion error
+
+        """
+
+        assert self.nx_graph is not None
+
+        if not overwrite_existing:
+            assert not os.path.exists(outputfilename+'.txt'), "outputfilename exists already: "+str(outputfilename)+'.txt'
+
+
+        with open(outputfilename+'.txt', 'w') as d_file:
+            np.savetxt(d_file, np.array(["ID " + str(self.seg_id)]), '%s')
+            np.savetxt(d_file, np.array(["POINTS " + str(self.nx_graph.number_of_nodes()) + " FLOAT"]), '%s')
+            for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
+                if node_attr['position'].voxel is None:
+                    assert self.voxel_size is not None
+                    assert self.nx_graph.node[node_id]['position'].phys is not None
+                    position = node_attr['position'].phys * self.voxel_size
+                else:
+                    position = node_attr['position'].voxel
+                np.savetxt(d_file, np.fliplr(np.reshape(position, (1, 3))), '%i')
+
+            np.savetxt(d_file, np.array(["\nEDGES " + str(self.nx_graph.number_of_edges())]), '%s')
+            for u, v in self.nx_graph.edges_iter():
+                np.savetxt(d_file, np.array([[u, v]]), '%i')
+
+            np.savetxt(d_file, np.array([" \ndiameters 0 0 FLOAT"]), '%s')
+            if diameter_per_node is None:
+                diameter_per_node = 2.*np.ones(self.nx_graph.number_of_nodes())
+            else:
+                assert len(diameter_per_node) == self.nx_graph.number_of_nodes()
+            np.savetxt(d_file, diameter_per_node, '%.4e')
+
         return
 
     def read_from_itk(self, inputfilename):
