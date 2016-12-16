@@ -3,6 +3,7 @@ __author__ = 'julia'
 from xml.dom import minidom
 import numpy as np
 import networkx as nx
+import skeleton_tools
 
 
 
@@ -106,20 +107,19 @@ def from_nml_to_nx_skeletons(filename, scaling=[1, 1, 1]):
     annotation_elems = doc.getElementsByTagName("thing")
     nx_skeleton_list = []
     for annotation_elem in annotation_elems:
-        nx_skeleton = from_thing_to_nx_skeleton(annotation_elem, scaling=scaling)
+        nx_skeleton = from_thing_to_nx_skeleton(annotation_elem)
         nx_skeleton_list.append(nx_skeleton)
     return nx_skeleton_list
 
 
-def from_thing_to_nx_skeleton(annotation_elem, scaling=[1, 1, 1]):
-    if isinstance(scaling, list):
-        scaling = np.array(scaling)
+def from_thing_to_nx_skeleton(annotation_elem):
+
     # Read nodes
     node_elems = annotation_elem.getElementsByTagName("node")
     point_dic = {}
     for node_elem in node_elems:
         point, id = from_node_elem_to_node(node_elem)
-        point = point * scaling
+        point = point
         if id in point_dic:
             print 'Warning: ID already exists'
         else:
@@ -132,9 +132,10 @@ def from_thing_to_nx_skeleton(annotation_elem, scaling=[1, 1, 1]):
         (source_ID, target_ID) = parse_attributes(edge_elem, [["source", int], ["target", int]])
         edge_list.append([source_ID, target_ID])
 
-    nx_skeleton = networkx_utils.NxSkeleton()
-    nx_skeleton.initialize_from_edgelist(point_dic, edge_list)
-    return nx_skeleton.nx_graph
+    skeleton = skeleton_tools.Skeleton()
+    skeleton.initialize_from_datapoints(point_dic, True, edgelist=edge_list, datapoints_type='dic')
+
+    return skeleton
 
 
 def from_node_elem_to_node(node_elem):
