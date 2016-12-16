@@ -10,7 +10,7 @@ Skeleton_tools
 import networkx as nx
 import numpy as np
 import os
-# import knossos_utils
+import knossos_utils
 
 
 class VP_type(object):
@@ -22,8 +22,11 @@ class VP_type(object):
 class SkeletonContainer(object):
     """Collection of multiple skeleton objects."""
 
-    def __init__(self, skeletons):
-        self.skeleton_list = skeletons
+    def __init__(self, skeletons=None):
+        if skeletons is not None:
+            self.skeleton_list = skeletons
+        else:
+            self.skeleton_list = []
 
     def write_to_knossos_nml(self, outputfilename):
         # TODO make a generic function that takes as an argument a function and applies it to all the
@@ -34,7 +37,13 @@ class SkeletonContainer(object):
                                                  skeleton in self.skeleton_list],
                                                 outputfilename)
 
+    def read_from_knossos_nml(self, inputfilename, voxel_size=None):
 
+        skeleton_list = knossos_utils.from_nml_to_nx_skeletons(inputfilename)
+        if voxel_size is not None:
+            for skeleton in skeleton_list:
+                skeleton.voxel_size = voxel_size
+        self.skeleton_list = skeleton_list
 
     def write_to_itk(self, outputfilename='data_test_itk', all_diameter_per_node=None, all_overwrite_existing=None):
         """ Write all skeleton in container to itk format (see example file in skeleton_tools/test_data_itk.txt)
@@ -62,8 +71,8 @@ class SkeletonContainer(object):
             else:
                 overwrite_existing = all_overwrite_existing[nr_skeleton]
 
-            skeleton.write_to_itk(outputfilename=outputfilename+'_'+str(skeleton.identifier), diameter_per_node=diameter_per_node, overwrite_existing=overwrite_existing)
-
+            skeleton.write_to_itk(outputfilename=outputfilename + '_' + str(skeleton.identifier),
+                                  diameter_per_node=diameter_per_node, overwrite_existing=overwrite_existing)
 
 
 class Skeleton(object):
@@ -83,7 +92,7 @@ class Skeleton(object):
         else:
             self.nx_graph = nx.Graph()
 
-    def initialize_from_datapoints(self, datapoints, vp_type_voxel, edgelist=None):
+    def initialize_from_datapoints(self, datapoints, vp_type_voxel, edgelist=None, datapoints_type='nparray'):
         """ Initializes a graph with provided datapoints. The node_id in the graph corresponds to the index number of the array.
 
         Parameters
@@ -96,18 +105,38 @@ class Skeleton(object):
                 If set, edges are added to the nxgraph.
 
         """
-        assert datapoints.shape[1] == 3
-        assert datapoints.shape[0] == len(np.unique(
-            np.array(edgelist))), 'number of nodes (extracted from edges) and provided coordinates do not match'
-        # TODO: Add a function that allows to add many coordinates at once to an exisiting graph, but tricky
-        # since how to handle the Node IDs.
         assert self.nx_graph.number_of_nodes() == 0, 'Graph is not empty, can not initialize a graph.'
-        for node_id in range(datapoints.shape[0]):
-            pos = datapoints[node_id, :]
-            if vp_type_voxel:
-                self.add_node(node_id, pos_voxel=pos)
-            else:
-                self.add_node(node_id, pos_phys=pos)
+
+        if datapoints_type == 'nparray':
+            assert isinstance(datapoints,
+                              np.array), 'datapoints is not of type numpy array, either change input type or set datapoints_type differently'
+        if datapoints_type == 'dic':
+            assert isinstance(datapoints,
+                              dict), 'datapoints is not of type dictionary, either change input type or set datapoints_type differently'
+
+        if datapoints_type == 'nparray':
+            assert datapoints.shape[1] == 3
+            if edgelist is not None:
+                assert datapoints.shape[0] == len(np.unique(
+                    np.array(edgelist))), 'number of nodes (extracted from edges) and provided coordinates do not match'
+            # TODO: Add a function that allows to add many coordinates at once to an exisiting graph, but tricky
+            # since how to handle the Node IDs.
+
+            for node_id in range(datapoints.shape[0]):
+                pos = datapoints[node_id, :]
+                if vp_type_voxel:
+                    self.add_node(node_id, pos_voxel=pos)
+                else:
+                    self.add_node(node_id, pos_phys=pos)
+        elif datapoints_type == 'dic':
+            for node_id, pos in datapoints.iteritems():
+                if vp_type_voxel:
+                    self.add_node(node_id, pos_voxel=pos)
+                else:
+                    self.add_node(node_id, pos_phys=pos)
+        else:
+            print 'provided datapoints_type not supported'
+
 
         if edgelist is not None:
             self.nx_graph.add_edges_from(edgelist)
@@ -144,9 +173,10 @@ class Skeleton(object):
 
         if 'position_voxel' in node_feature_names:
             # Complement the voxel
-            assert self.voxel_size is not None, 'can not convert positions into voxel space, since voxel size is not given'
-            self.nx_graph.node[node_id]['position'].voxel = (self.nx_graph.node[node_id][
-                                                                'position'].phys // self.voxel_size).astype(np.int)
+            if self.nx_graph.node[node_id]['position'].voxel is None:
+                assert self.voxel_size is not None, 'can not convert positions into voxel space, since voxel size is not given'
+                self.nx_graph.node[node_id]['position'].voxel = (self.nx_graph.node[node_id][
+                                                                     'position'].phys // self.voxel_size).astype(np.int)
 
         if 'position_phys' in node_feature_names:
             # Complement the voxel
@@ -231,10 +261,10 @@ class Skeleton(object):
         assert self.nx_graph is not None
 
         if not overwrite_existing:
-            assert not os.path.exists(outputfilename+'.txt'), "outputfilename exists already: "+str(outputfilename)+'.txt'
+            assert not os.path.exists(outputfilename + '.txt'), "outputfilename exists already: " + str(
+                outputfilename) + '.txt'
 
-
-        with open(outputfilename+'.txt', 'w') as d_file:
+        with open(outputfilename + '.txt', 'w') as d_file:
             np.savetxt(d_file, np.array(["ID " + str(self.seg_id)]), '%s')
             np.savetxt(d_file, np.array(["POINTS " + str(self.nx_graph.number_of_nodes()) + " FLOAT"]), '%s')
             for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
@@ -252,7 +282,7 @@ class Skeleton(object):
 
             np.savetxt(d_file, np.array([" \ndiameters 0 0 FLOAT"]), '%s')
             if diameter_per_node is None:
-                diameter_per_node = 2.*np.ones(self.nx_graph.number_of_nodes())
+                diameter_per_node = 2. * np.ones(self.nx_graph.number_of_nodes())
             else:
                 assert len(diameter_per_node) == self.nx_graph.number_of_nodes()
             np.savetxt(d_file, diameter_per_node, '%.4e')
@@ -265,7 +295,6 @@ class Skeleton(object):
         :param inputfilename:
         :return:
         '''
-
 
         return
 
