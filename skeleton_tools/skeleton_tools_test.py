@@ -96,3 +96,49 @@ class TestSkeletonTools(unittest.TestCase):
 
 
 
+    def test_interpolateSkeleton(self):
+        test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
+        nodes_pos_phys = np.array([[0, 0, 0], [50., 50., 100.], [100., 100., 200.], [100., 100., 300.]])
+        edges = [(0, 1), (1, 2), (1, 3)]
+        test_skeleton.initialize_from_datapoints(nodes_pos_phys, vp_type_voxel=False, edgelist=edges)
+
+        # Get statistics about the graph and check whether they remain the same after interpolating the edges.
+        deg = test_skeleton.nx_graph.degree()
+        num_of_branch_nodes = len([n for n in deg if deg[n] > 1])
+        num_of_endnodes = len([n for n in deg if deg[n] == 1])
+        num_of_nodes_with_no_edge = len([n for n in deg if deg[n] == 0])
+
+        test_skeleton.interpolate_edges(voxel_step_size=1)
+        self.assertEqual(num_of_branch_nodes, len([n for n in deg if deg[n] > 1]))
+        self.assertEqual(num_of_endnodes, len([n for n in deg if deg[n] == 1]))
+        self.assertEqual(num_of_nodes_with_no_edge, len([n for n in deg if deg[n] == 0]))
+
+        # Test interpolation with voxel step size = 2.
+        test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
+        test_skeleton.initialize_from_datapoints(nodes_pos_phys, vp_type_voxel=False, edgelist=edges)
+        deg = test_skeleton.nx_graph.degree()
+        num_of_branch_nodes = len([n for n in deg if deg[n] > 1])
+        num_of_endnodes = len([n for n in deg if deg[n] == 1])
+        num_of_nodes_with_no_edge = len([n for n in deg if deg[n] == 0])
+        exp_nodes = test_skeleton.nx_graph.nodes()
+        exp_edges = test_skeleton.nx_graph.edges()
+
+        test_skeleton.interpolate_edges(voxel_step_size=2)
+        self.assertEqual(num_of_branch_nodes, len([n for n in deg if deg[n] > 1]))
+        self.assertEqual(num_of_endnodes, len([n for n in deg if deg[n] == 1]))
+        self.assertEqual(num_of_nodes_with_no_edge, len([n for n in deg if deg[n] == 0]))
+        self.assertNotEqual(exp_nodes, test_skeleton.nx_graph.nodes())
+        self.assertNotEqual(exp_edges, test_skeleton.nx_graph.edges())
+
+        # Test interpolation with voxel step size too big and check that the graph does not change at all.
+        test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
+        test_skeleton.initialize_from_datapoints(nodes_pos_phys, vp_type_voxel=False, edgelist=edges)
+        exp_nodes = test_skeleton.nx_graph.nodes()
+        exp_edges = test_skeleton.nx_graph.edges()
+
+        test_skeleton.interpolate_edges(voxel_step_size=5)
+        self.assertEqual(exp_nodes, test_skeleton.nx_graph.nodes())
+        self.assertEqual(exp_edges, test_skeleton.nx_graph.edges())
+
+
+

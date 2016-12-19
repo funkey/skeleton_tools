@@ -109,7 +109,7 @@ class Skeleton(object):
 
         if datapoints_type == 'nparray':
             assert isinstance(datapoints,
-                              np.array), 'datapoints is not of type numpy array, either change input type or set datapoints_type differently'
+                              np.ndarray), 'datapoints is not of type numpy array, either change input type or set datapoints_type differently'
         if datapoints_type == 'dic':
             assert isinstance(datapoints,
                               dict), 'datapoints is not of type dictionary, either change input type or set datapoints_type differently'
@@ -307,3 +307,63 @@ class Skeleton(object):
             path_length = edge_attr['length'].phys
             total_path_length += path_length
         return total_path_length
+
+    def _interpolate_edge(self, u, v, voxel_step_size):
+        if not 'length' in self.nx_graph.edge[u][v]:
+                self._add_edge_features(u, v, 'length')
+        length_voxel = self.nx_graph.edge[u][v]['length'].voxel
+        assert length_voxel is not None
+        if length_voxel <= voxel_step_size:
+            return
+
+        pos_u = self.nx_graph.node[u]['position'].voxel
+        pos_v = self.nx_graph.node[v]['position'].voxel
+        dir_vec = pos_v - pos_u
+        dir_vec = dir_vec/np.linalg.norm(dir_vec)
+
+        number_of_new_nodes = int(np.ceil(length_voxel/voxel_step_size)-1)
+        ori_pos = pos_u
+        cur_node = u
+        cur_pos = pos_u.copy()
+        for step in range(number_of_new_nodes):
+            new_pos = (ori_pos + step*dir_vec*voxel_step_size).astype(np.int)
+
+            if np.equal(cur_pos, new_pos).all():
+                # This happens if the direction_vector steps is too small to have an effect in a single step.
+                continue
+
+            new_node_id = np.max(self.nx_graph.nodes())+1
+            self.add_node(new_node_id, pos_voxel=new_pos)
+            self.nx_graph.add_edge(cur_node, new_node_id)
+            cur_node = new_node_id.copy()
+            cur_pos = new_pos.copy()
+
+        # Add final edge to he last inserted new node and the original v node and remove original edge u, v.
+        self.nx_graph.add_edge(cur_node, v)
+        self.nx_graph.remove_edge(u, v)
+
+
+
+
+    def interpolate_edges(self, voxel_step_size=1):
+        """ Interpolates all edges, meaning inserting additional nodes such that the length from one node to the
+        other corresponds to voxel_step_size.
+
+        Parameters
+        ----------
+            voxel_step_size: int
+                How long the distance between to consecutive nodes should be.
+        Notes
+        ---------
+            Note that the node IDs of the orginal graph stay the same. The additional inserted nodes get new IDs
+            starting with the ID number of the current max node id. Consecutive node IDs thus not necessarily
+            correspond to consecutive nodes in space.
+
+        """
+
+        self.fill_in_node_features('position_voxel')
+        # Get the list of all edges, before additional edges are inserted
+        edges = self.nx_graph.edges()
+        for u, v in edges:
+            self._interpolate_edge(u, v, voxel_step_size)
+
