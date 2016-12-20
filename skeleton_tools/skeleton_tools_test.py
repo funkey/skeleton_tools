@@ -90,10 +90,8 @@ class TestSkeletonTools(unittest.TestCase):
         edges = [(0, 1), (1, 2)]
         test_skeleton2.initialize_from_datapoints(nodes_pos_phys, False, edgelist=edges)
 
-
         skeleton_container = SkeletonContainer([test_skeleton, test_skeleton2])
         skeleton_container.write_to_knossos_nml('testdata/knossostestfile.nml')
-
 
 
     def test_interpolateSkeleton(self):
@@ -136,9 +134,42 @@ class TestSkeletonTools(unittest.TestCase):
         exp_nodes = test_skeleton.nx_graph.nodes()
         exp_edges = test_skeleton.nx_graph.edges()
 
-        test_skeleton.interpolate_edges(voxel_step_size=5)
+        test_skeleton.interpolate_edges(voxel_step_size=50)
         self.assertEqual(exp_nodes, test_skeleton.nx_graph.nodes())
         self.assertEqual(exp_edges, test_skeleton.nx_graph.edges())
+
+    def test_getNodeIdsOfEndpoints(self):
+        # test correct number and node id of edges for branched graph
+        test_skeleton_end = Skeleton(voxel_size=np.array([1.,1.,2.]))
+        nodes_pos_phys_end = np.array([[0, 0, 0], [10., 5., 5.], [20., 10., 10.], [30., 15., 15.],[20.,20.,20.],[25., 25., 25.],[30., 30., 30.]])
+        edges_end = [(0, 1), (1, 2), (2, 3), (1,4), (4, 5), (1, 6)]
+        test_skeleton_end.initialize_from_datapoints(nodes_pos_phys_end, vp_type_voxel=False, edgelist=edges_end)
+
+        all_endpoints = test_skeleton_end.get_node_ids_of_endpoints()
+        self.assertEqual(len(all_endpoints), 4)
+        self.assertEqual(set(all_endpoints), set([0,3,5,6]))
+
+        # test correct number and node id of edges for cyclic graph
+        test_skeleton_end = Skeleton(voxel_size=np.array([1.,1.,2.]))
+        nodes_pos_phys_end = np.array([[0, 0, 0], [5., 5., 5.], [10., 10., 10.], [15., 15., 15.],[20.,20.,20.],[25., 25., 25.],[30., 30., 30.]])
+        edges_end = [(0, 1), (1, 2), (2, 3), (3,4), (4, 5), (5, 6), (6, 0)]
+        test_skeleton_end.initialize_from_datapoints(nodes_pos_phys_end, vp_type_voxel=False, edgelist=edges_end)
+
+        all_endpoints = test_skeleton_end.get_node_ids_of_endpoints()
+        self.assertEqual(len(all_endpoints), 0)
+        self.assertEqual(set(all_endpoints), set([]))
+
+        # test that does return an empty list, if only one single node is given in the connected graph
+        test_skeleton_end = Skeleton(voxel_size=np.array([1.,1.,2.]))
+        nodes_pos_phys_end = np.array([[5., 5., 5.]])
+        test_skeleton_end.initialize_from_datapoints(nodes_pos_phys_end, vp_type_voxel=False, edgelist=None)
+
+        all_endpoints = test_skeleton_end.get_node_ids_of_endpoints()
+        self.assertEqual(len(all_endpoints), 0)
+
+
+
+
 
 
 

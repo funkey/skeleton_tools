@@ -119,7 +119,7 @@ class Skeleton(object):
             if edgelist is not None:
                 assert datapoints.shape[0] == len(np.unique(
                     np.array(edgelist))), 'number of nodes (extracted from edges) and provided coordinates do not match'
-            # TODO: Add a function that allows to add many coordinates at once to an exisiting graph, but tricky
+            # TODO: Add a function that allows to add many coordinates at once to an existing graph, but tricky
             # since how to handle the Node IDs.
 
             for node_id in range(datapoints.shape[0]):
@@ -141,33 +141,45 @@ class Skeleton(object):
         if edgelist is not None:
             self.nx_graph.add_edges_from(edgelist)
 
+
     def add_node(self, node_id, pos_voxel=None, pos_phys=None):
-        '''
-        add node to exisiting skeleton
-        :param node_id:     node_id of node to be added
-        :param pos_voxel:   position of node in voxel-coordinates (int)
-        :param pos_phys:    position of node in phsyical coordinates (float)
-        :return:            -
-        '''
+        """ Add node to exisiting skeleton
+
+        Parameters
+        ----------
+            node_id:    node_id of node to be added
+            pos_voxel:  np.array, int
+                    Position of node in voxel-coordinates
+            pos_phys:   np.array, float
+                    Position of node in physical-coordinates
+        """
+
         position = VP_type(voxel=pos_voxel, phys=pos_phys)
         self.nx_graph.add_node(n=node_id, position=position)
 
+
     def add_edge(self, u, v):
-        '''
-        add edge to existing skeleton
-        :param u:   node_id of first node of edge
-        :param v:   node_id of second node of edge
-        :return:    -
-        '''
+        """ Add edge to existing skeleton
+
+        Parameters
+        ----------
+            u:  node_id of first node of edge
+            v:  node_id of second node of edge
+
+        """
+
         self.nx_graph.add_edge(u, v)
 
+
     def _add_node_features(self, node_id, node_feature_names=[]):
-        '''
-        internal function to add key:value to dictionary of one node.
-        :param node_id:             node_id of node where feature is added
-        :param node_feature_names:  key to be added
-        :return:
-        '''
+        """ Internal function to add key:value to dictionary of one node
+
+        Parameters
+        ----------
+            node_id:            node_id of node where feature is added
+            node_feature_names: key to be added
+        """
+
         if 'direction' in node_feature_names:
             pass
 
@@ -184,14 +196,18 @@ class Skeleton(object):
             self.nx_graph.node[node_id]['position'].phys = self.nx_graph.node[node_id][
                                                                'position'].voxel * self.voxel_size
 
+
     def _add_edge_features(self, u, v, edge_feature_names=[]):
-        '''
-        internal function to add key:value to dictionary of one edge
-        :param u:                   node_id of first node of edge
-        :param v:                   node_id of second node of edge
-        :param edge_feature_names:  key to be added
-        :return:
-        '''
+        """ Internal function to add key:value to dictionary of one edge
+
+        Parameters
+        ----------
+            u:                   node_id of first node of edge
+            v:                   node_id of second node of edge
+            edge_feature_names:  key to be added
+
+        """
+
         if 'length' in edge_feature_names:
             pos_u = self.nx_graph.node[u]['position']
             pos_v = self.nx_graph.node[v]['position']
@@ -208,40 +224,37 @@ class Skeleton(object):
         if 'direction' in edge_feature_names:
             pass
 
+
     def fill_in_node_features(self, node_feature_names=[]):
-        '''
-        add key:value to all dictionaries of all nodes
-        :param node_feature_names:      key to be added
-        :return:
-        '''
+        """ Add key:value to all dictionaries of all nodes
+
+        Parameters
+        ----------
+            node_feature_names: key to be added
+
+        """
         for node_id in self.nx_graph.nodes_iter():
             self._add_node_features(node_id=node_id, node_feature_names=node_feature_names)
 
-    def fill_in_edge_features(self, edge_feature_names=[]):
-        '''
-        add key:value to all dicitonaries of all edges
-        :param edge_feature_names:      key to be added
-        :return:
-        '''
 
+    def fill_in_edge_features(self, edge_feature_names=[]):
+        """ Add key:value to all dicitonaries of all edges
+
+         Parameters
+         ----------
+             edge_feature_names: key to be added
+         """
         for u, v in self.nx_graph.edges_iter():
             self._add_edge_features(u, v, edge_feature_names=edge_feature_names)
 
-    def write_to_knossos_nml(self, outputfilename):
-        '''
 
-        :param outputfilename:
-        :return:
-        '''
+    def write_to_knossos_nml(self, outputfilename):
         return
+
 
     def read_from_knossos_nml(self, inputfilename):
-        '''
-
-        :param inputfilename:
-        :return:
-        '''
         return
+
 
     def write_to_itk(self, outputfilename='data_test_itk', diameter_per_node=None, overwrite_existing=False):
         """ Write skeleton to itk format (see example file in skeleton_tools/test_data_itk.txt)
@@ -289,17 +302,12 @@ class Skeleton(object):
 
         return
 
+
     def read_from_itk(self, inputfilename):
-        '''
-
-        :param inputfilename:
-        :return:
-        '''
-
         return
 
     def calculate_total_phys_length(self):
-        """Calculate total phys length."""
+        """ Calculate total phys length. """
         total_path_length = 0
         for u, v, edge_attr in self.nx_graph.edges_iter(data=True):
             if not 'length' in edge_attr:
@@ -307,6 +315,7 @@ class Skeleton(object):
             path_length = edge_attr['length'].phys
             total_path_length += path_length
         return total_path_length
+
 
     def _interpolate_edge(self, u, v, voxel_step_size):
         if not 'length' in self.nx_graph.edge[u][v]:
@@ -322,27 +331,27 @@ class Skeleton(object):
         dir_vec = dir_vec/np.linalg.norm(dir_vec)
 
         number_of_new_nodes = int(np.ceil(length_voxel/voxel_step_size)-1)
-        ori_pos = pos_u
+        ori_pos  = pos_u
         cur_node = u
-        cur_pos = pos_u.copy()
+        cur_pos  = pos_u.copy()
+        min_one_node_added = False
         for step in range(number_of_new_nodes):
             new_pos = (ori_pos + step*dir_vec*voxel_step_size).astype(np.int)
 
             if np.equal(cur_pos, new_pos).all():
                 # This happens if the direction_vector steps is too small to have an effect in a single step.
                 continue
-
             new_node_id = np.max(self.nx_graph.nodes())+1
             self.add_node(new_node_id, pos_voxel=new_pos)
             self.nx_graph.add_edge(cur_node, new_node_id)
+            min_one_node_added = True
             cur_node = new_node_id.copy()
             cur_pos = new_pos.copy()
 
         # Add final edge to he last inserted new node and the original v node and remove original edge u, v.
-        self.nx_graph.add_edge(cur_node, v)
-        self.nx_graph.remove_edge(u, v)
-
-
+        if min_one_node_added:
+            self.nx_graph.add_edge(cur_node, v)
+            self.nx_graph.remove_edge(u, v)
 
 
     def interpolate_edges(self, voxel_step_size=1):
@@ -367,3 +376,11 @@ class Skeleton(object):
         for u, v in edges:
             self._interpolate_edge(u, v, voxel_step_size)
 
+
+    def get_node_ids_of_endpoints(self):
+        """ Return all node_ids which are endpoints (= have only one neighboring node). """
+        all_node_ids_of_endpoints = []
+        for node_id in self.nx_graph.nodes_iter(data=False):
+            if len(self.nx_graph.neighbors(node_id)) == 1:
+                all_node_ids_of_endpoints.append(node_id)
+        return all_node_ids_of_endpoints
