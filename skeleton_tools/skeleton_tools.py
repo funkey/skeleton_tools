@@ -191,10 +191,9 @@ class Skeleton(object):
                                                                      'position'].phys // self.voxel_size).astype(np.int)
 
         if 'position_phys' in node_feature_names:
-            # Complement the voxel
-            assert self.voxel_size is not None, 'can not convert positions into phys space, since voxel size is not given'
-            self.nx_graph.node[node_id]['position'].phys = self.nx_graph.node[node_id][
-                                                               'position'].voxel * self.voxel_size
+            if self.nx_graph.node[node_id]['position'].phys is None:
+                assert self.voxel_size is not None, 'can not convert positions into phys space, since voxel size is not given'
+                self.nx_graph.node[node_id]['position'].phys = self.nx_graph.node[node_id]['position'].voxel * self.voxel_size
 
 
     def _add_edge_features(self, u, v, edge_feature_names=[]):
@@ -317,33 +316,53 @@ class Skeleton(object):
         return total_path_length
 
 
-    def _interpolate_edge(self, u, v, voxel_step_size):
+    def _interpolate_edge(self, u, v, step_size, VP_type):
+        # VP_type: 'voxel' or 'phys'
+
         if not 'length' in self.nx_graph.edge[u][v]:
                 self._add_edge_features(u, v, 'length')
-        length_voxel = self.nx_graph.edge[u][v]['length'].voxel
-        assert length_voxel is not None
-        if length_voxel <= voxel_step_size:
-            return
+        if VP_type == 'voxel':
+            length_step = self.nx_graph.edge[u][v]['length'].voxel
+            assert length_step is not None
+            if length_step <= step_size:
+                return
+            pos_u = self.nx_graph.node[u]['position'].voxel
+            pos_v = self.nx_graph.node[v]['position'].voxel
 
-        pos_u = self.nx_graph.node[u]['position'].voxel
-        pos_v = self.nx_graph.node[v]['position'].voxel
+        elif VP_type == 'phys':
+            length_step = self.nx_graph.edge[u][v]['length'].phys
+            assert length_step is not None
+            if length_step <= step_size:
+                return
+            pos_u = self.nx_graph.node[u]['position'].phys
+            pos_v = self.nx_graph.node[v]['position'].phys
+
         dir_vec = pos_v - pos_u
         dir_vec = dir_vec/np.linalg.norm(dir_vec)
 
-        number_of_new_nodes = int(np.ceil(length_voxel/voxel_step_size)-1)
+        number_of_new_nodes = int(np.ceil(length_step/step_size)-1)
         ori_pos  = pos_u
         cur_node = u
         cur_pos  = pos_u.copy()
         min_one_node_added = False
         for step in range(number_of_new_nodes):
-            new_pos = (ori_pos + step*dir_vec*voxel_step_size).astype(np.int)
+
+            if VP_type == 'voxel':
+                new_pos = (ori_pos + step*dir_vec*step_size).astype(np.int)
+            elif VP_type == 'phys':
+                new_pos = (ori_pos + step * dir_vec * step_size).astype('float')
 
             if np.equal(cur_pos, new_pos).all():
                 # This happens if the direction_vector steps is too small to have an effect in a single step.
                 continue
+
             new_node_id = np.max(self.nx_graph.nodes())+1
-            self.add_node(new_node_id, pos_voxel=new_pos)
-            self.nx_graph.add_edge(cur_node, new_node_id)
+            if VP_type == 'voxel':
+                self.add_node(new_node_id, pos_voxel=new_pos)
+                self.nx_graph.add_edge(cur_node, new_node_id)
+            elif VP_type == 'phys':
+                self.add_node(new_node_id, pos_phys=new_pos)
+                self.nx_graph.add_edge(cur_node, new_node_id)
             min_one_node_added = True
             cur_node = new_node_id.copy()
             cur_pos = new_pos.copy()
@@ -354,7 +373,7 @@ class Skeleton(object):
             self.nx_graph.remove_edge(u, v)
 
 
-    def interpolate_edges(self, voxel_step_size=1):
+    def interpolate_edges(self, step_size=1, VP_type=None):
         """ Interpolates all edges, meaning inserting additional nodes such that the length from one node to the
         other corresponds to voxel_step_size.
 
@@ -369,12 +388,15 @@ class Skeleton(object):
             correspond to consecutive nodes in space.
 
         """
+        if VP_type == 'voxel':
+            self.fill_in_node_features('position_voxel')
+        elif VP_type == 'phys':
+            self.fill_in_node_features('position_phys')
 
-        self.fill_in_node_features('position_voxel')
         # Get the list of all edges, before additional edges are inserted
         edges = self.nx_graph.edges()
         for u, v in edges:
-            self._interpolate_edge(u, v, voxel_step_size)
+            self._interpolate_edge(u, v, step_size=step_size, VP_type=VP_type)
 
 
     def get_node_ids_of_endpoints(self):
