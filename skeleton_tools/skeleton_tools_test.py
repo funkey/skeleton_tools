@@ -254,6 +254,107 @@ class TestSkeletonTools(unittest.TestCase):
         self.assertEqual(len(all_endpoints), 0)
 
 
+    def test_getPrecision(self):
+        # test normal case where one node more predicted than in target skeleton
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [5, 5, 10], [5, 5, 15], [20, 20, 20]])
+        edges_target = ((0, 1), (1, 2), (2, 3))
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        Sk_pred = Skeleton()
+        nodes_pred = np.array([[0, 0, 5], [5, 5, 15], [10, 15, 25], [20, 25, 40]])
+        edges_pred = ((0, 1), (1, 2), (2, 3))
+        Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
+                                           datapoints_type='nparray')
+        tolerance_distance = 5
+        human_precision = (1.+1.+0.+0.) / len(nodes_pred)
+        fct_precision   = Sk_target.get_precision(other=Sk_pred, tolerance_distance=tolerance_distance)
+        self.assertEqual(human_precision, fct_precision)
+
+        # test if tolerance distance is 0, only exactly the same node position are correct
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [5, 5, 10], [5, 5, 15], [20, 20, 20]])
+        edges_target = ((0, 1), (1, 2), (2, 3))
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        Sk_pred = Skeleton()
+        nodes_pred = np.array([[0, 0, 20], [5, 5, 20], [5, 5, 15], [10, 15, 20], [20, 25, 40]])
+        edges_pred = ((0, 1), (1, 2), (2, 3), (3, 4))
+        Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
+                                           datapoints_type='nparray')
+        tolerance_distance = 0
+        human_precision = (1.+0.+0.+0.+0.) / 5.
+        fct_precision   = Sk_target.get_precision(other=Sk_pred, tolerance_distance=tolerance_distance)
+        self.assertEqual(human_precision, fct_precision)
+
+        # check if interpolated lines are taken into account
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [20, 20, 20]])
+        edges_target = [(0,1)]
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        Sk_pred = Skeleton()
+        nodes_pred = np.array([[5, 5, 5], [10, 10, 10], [30, 30, 30]])
+        edges_pred = ((0, 1), (1, 2))
+        Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
+                                           datapoints_type='nparray')
+        tolerance_distance = 0.
+        human_precision = (1.+1.+0.) / len(nodes_pred)
+        fct_precision   = Sk_target.get_precision(other=Sk_pred, tolerance_distance=tolerance_distance)
+        self.assertEqual(human_precision, fct_precision)
+
+
+    def getRecall(self):
+        # normal case
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [5, 5, 10], [5, 5, 15], [20, 20, 20]])
+        edges_target = ((0, 1), (1, 2), (2, 3))
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        Sk_pred = Skeleton()
+        nodes_pred = np.array([[0, 0, 5], [5, 5, 15], [10, 15, 25], [20, 25, 40]])
+        edges_pred = ((0, 1), (1, 2), (2, 3), (3, 4))
+        Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
+                                           datapoints_type='nparray')
+        tolerance_distance = 5
+        human_recall = (1.+1.+1.+0.) / len(nodes_pred)
+        fct_recall   = Sk_target.get_recall(other=Sk_pred, tolerance_distance=tolerance_distance)
+        self.assertEqual(human_recall, fct_recall)
+
+        # test if tolerance distance is 0, only exactly the same node position are correct
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [5, 5, 5], [10, 10, 10], [20, 20, 20]])
+        edges_target = ((0, 1), (1, 2), (2, 3))
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        Sk_pred = Skeleton()
+        nodes_pred = np.array([[0, 0, 0], [5, 5, 6], [5, 5, 7], [10, 10, 10], [20, 20, 18]])
+        edges_pred = ((0, 1), (1, 2), (2, 3), (3, 4))
+        Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
+                                           datapoints_type='nparray')
+        tolerance_distance = 0
+        human_precision = (1.+0.+0.+1.+0.) / 5.
+        fct_precision   = Sk_target.get_precision(other=Sk_pred, tolerance_distance=tolerance_distance)
+        self.assertEqual(human_precision, fct_precision)
+
+        # check if interpolated lines are taken into account
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [20, 20, 20]])
+        edges_target = [(0, 1)]
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        Sk_pred = Skeleton()
+        nodes_pred = np.array([[0, 0, 0], [5, 5, 5], [10, 10, 10], [30, 30, 30]])
+        edges_pred = ((0, 1), (1, 2), (2, 3))
+        Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
+                                           datapoints_type='nparray')
+        tolerance_distance = 0.
+        human_recall = (1. + 1.) / len(nodes_pred)
+        fct_recall = Sk_target.get_precision(other=Sk_pred, tolerance_distance=tolerance_distance)
+        self.assertEqual(human_recall, fct_recall)
+
+
+
 
 
 

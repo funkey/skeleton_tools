@@ -11,6 +11,7 @@ import networkx as nx
 import numpy as np
 import os
 import knossos_utils
+from scipy.spatial import KDTree
 
 
 class VP_type(object):
@@ -406,3 +407,123 @@ class Skeleton(object):
             if len(self.nx_graph.neighbors(node_id)) == 1:
                 all_node_ids_of_endpoints.append(node_id)
         return all_node_ids_of_endpoints
+
+
+    def from_nx_skeleton_to_datapoints(self, VP_type):
+        """ Create array of node positions
+         Parameters
+        ----------
+            VP_type: string, 'voxel' or 'phys'
+                if voxel or phys position should be written to array
+         Returns
+        ----------
+            dpts: np.array [N x 3]
+                Numpy array with node positions either voxel or phys coordinates
+        Notes
+        ---------
+            Order of node positions is arbitrary, not specified by edges
+        """
+        node_size = len(self.nx_graph)
+        dpts = np.empty((node_size, 3))
+        for index_count, (node_id, node_att) in enumerate(self.nx_graph.nodes_iter(data=True)):
+            if VP_type == 'voxel':
+                node_pos = node_att['position'].voxel
+            elif VP_type == 'phys':
+                node_pos = node_att['position'].phys
+            dpts[index_count, :] = node_pos
+        return dpts
+
+
+    def get_kdtree_from_datapoints(self, VP_type):
+        """ Add kdtree_of_nodes as attribute to SKeleton instance. kdtree_of_nodes is a KD tree
+         Parameters
+        ----------
+            VP_type: string, 'voxel' or 'phys'
+                if voxel or phys position should be written to array
+         Returns
+        ----------
+            tree: KD tree
+                Instance of scipy.spatial KD tree class, containing voxel or phys node positions
+        """
+
+        data = self.from_nx_skeleton_to_datapoints(VP_type=VP_type)
+        tree = KDTree(zip(data[:, 0].ravel(), data[:, 1].ravel(), data[:, 2].ravel()))
+        self.kdtree_of_nodes = tree
+        return tree
+
+
+    def get_precision(self, other, tolerance_distance):
+        """ get precision of predicted skeleton (other) compared to target skeleton (self).
+            A node is counted as correct if lies within tolerance distance to any node along the
+            edge-interpolated target skeleton.'
+         Parameters
+        ----------
+            other: Skeleton(),
+                Instance of Skeleton class containing the predicted nodes
+            tolerance_distance: int,
+                distance within a nodes must lie to closest node in target skeleton to be counted as correct
+         Returns
+        ----------
+            precision: float,
+                precision: true_positives / (true_positives+false_positives)
+                           percentage of nodes in other which lie within tolerance_distance to any node in self
+        Notes
+        ---------
+            Only the self/target skeleton is edge-interpolated
+        """
+        # other = predicted skeleton, self = target_skeleton
+        self.interpolate_edges(step_size=1, VP_type='voxel')
+
+        # create kdtree if does not exist yet
+        if not hasattr(self, 'kdtree_of_nodes'):
+            self.get_kdtree_from_datapoints(VP_type='voxel')
+        if not hasattr(other, 'kdtree_of_nodes'):
+            other.get_kdtree_from_datapoints(VP_type='voxel')
+
+        # iterate over pred nodes and check in target_skeleton for nodes closer than tolerance_distance
+        # get list which contains one list of close_nodes for every node in other/predicted skeleton
+        close_nodes_per_pred_node = other.kdtree_of_nodes.query_ball_tree(other=self.kdtree_of_nodes, r=tolerance_distance)
+        total_nodes_pred = other.nx_graph.number_of_nodes()
+        only_nonempty_close_nodes = filter(None, close_nodes_per_pred_node)
+        num_correct_nodes = float(len(only_nonempty_close_nodes))
+
+        precision = num_correct_nodes / total_nodes_pred
+        return precision
+
+
+    def get_recall(self, other, tolerance_distance):
+        """ get recall of target skeleton (self) compared to predicted skeleton (other).
+            A node is counted as recalled if any node in the edge-interpolated other/predicted skeleton lies within
+            tolerance distance to this specific node in self/target skeleton.'
+         Parameters
+        ----------
+            other: Skeleton(),
+                Instance of Skeleton class containing the predicted nodes
+            tolerance_distance: int,
+                distance within which a predicted nodes must lie for a target node to be counted as recalled
+         Returns
+        ----------
+            recall: float,
+                recall:  true_positives / (true_positives+false_positives)
+                         percentage of nodes in self which have at least on node in other which lies within
+                         tolerance_distance to it
+        Notes
+        ---------
+            Only the predicted skeleton is edge-interpolated
+        """
+        # other = predicted skeleton, self = target_skeleton
+        if not hasattr(self, 'kdtree_of_nodes'):
+            self.get_kdtree_from_datapoints(VP_type='voxel')
+        other.interpolate_edges(step_size=1, VP_type='voxel')
+        if not hasattr(other, 'kdtree_of_nodes'):
+            other.get_kdtree_from_datapoints(VP_type='voxel')
+
+        # iterate over target nodes and check in predicted nodes for nodes closer than tolerance_distance indicating that this target node was recalled
+        # ge list which contains one list of close_nodes for every node in self/target_skeleton
+        close_nodes_per_target_node = self.kdtree_of_nodes.query_ball_tree(other=other.kdtree_of_nodes, r=tolerance_distance)
+        total_num_nodes = self.nx_graph.number_of_nodes()
+        only_nonempty_close_nodes = filter(None, close_nodes_per_target_node)
+        num_recalled_nodes = float(len(only_nonempty_close_nodes))
+
+        recall = num_recalled_nodes / total_num_nodes
+        return recall
