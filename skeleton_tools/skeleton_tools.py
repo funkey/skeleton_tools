@@ -263,9 +263,9 @@ class Skeleton(object):
         ----------
             outputfilename: string
                 path and name where to store file to
-            skeleton_id:    int,
+            skeleton_id:        int,
                 Colour ID of skeleton in Volume Viewer (e.g. 0: black)
-            diameter_per_node: numpy array, shape: [1 x number_of_nodes()), default: 2.*np.ones(self.nx_graph.number_of_nodes())
+            diameter_per_node:  numpy array, shape: [1 x number_of_nodes()), default: 2.*np.ones(self.nx_graph.number_of_nodes())
                 array to define the diameter for every node. Represents the diameter shown in the viewer not the
                 actual diameter of the neuron.
             overwrite_existing: bool
@@ -531,3 +531,25 @@ class Skeleton(object):
 
         recall = num_recalled_nodes / total_num_nodes
         return recall
+
+
+    def get_distance_to_skeleton(self, x):
+        """Get for every node in other the closest distance to the interpolated skeleton in self.nx_graph
+         Parameters
+        ----------
+            x:    array, [N x 3]
+                Datapoints to get clostest distance to interpolated self.nx_graph
+         Returns
+         ---------
+            distance_to_cl: array of floats, [N,]
+                min. distance to centerline for every point in distant_pts
+        """
+        self.interpolate_edges(step_size=1, VP_type='voxel')
+        if not hasattr(self, 'kdtree_of_nodes'):
+            self.get_kdtree_from_datapoints(VP_type='voxel')
+        # "query()" returns distance to closest points AND their location, here only distance considered
+        distance_to_cl = self.kdtree_of_nodes.query(x=x, k=1, eps=0, p=2, distance_upper_bound=np.inf)[0]
+        return distance_to_cl
+
+
+

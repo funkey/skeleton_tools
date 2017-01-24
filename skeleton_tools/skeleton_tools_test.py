@@ -93,51 +93,6 @@ class TestSkeletonTools(unittest.TestCase):
         skeleton_container = SkeletonContainer([test_skeleton, test_skeleton2])
         skeleton_container.write_to_knossos_nml('testdata/knossostestfile.nml')
 
-
-    # def test_interpolateSkeleton_org(self):
-    #     test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
-    #     nodes_pos_phys = np.array([[0, 0, 0], [50., 50., 100.], [100., 100., 200.], [100., 100., 300.]])
-    #     edges = [(0, 1), (1, 2), (1, 3)]
-    #     test_skeleton.initialize_from_datapoints(nodes_pos_phys, vp_type_voxel=False, edgelist=edges)
-    #
-    #     # Get statistics about the graph and check whether they remain the same after interpolating the edges.
-    #     deg = test_skeleton.nx_graph.degree()
-    #     num_of_branch_nodes = len([n for n in deg if deg[n] > 1])
-    #     num_of_endnodes = len([n for n in deg if deg[n] == 1])
-    #     num_of_nodes_with_no_edge = len([n for n in deg if deg[n] == 0])
-    #
-    #     test_skeleton.interpolate_edges(voxel_step_size=1)
-    #     self.assertEqual(num_of_branch_nodes, len([n for n in deg if deg[n] > 1]))
-    #     self.assertEqual(num_of_endnodes, len([n for n in deg if deg[n] == 1]))
-    #     self.assertEqual(num_of_nodes_with_no_edge, len([n for n in deg if deg[n] == 0]))
-    #
-    #     # Test interpolation with voxel step size = 2.
-    #     test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
-    #     test_skeleton.initialize_from_datapoints(nodes_pos_phys, vp_type_voxel=False, edgelist=edges)
-    #     deg = test_skeleton.nx_graph.degree()
-    #     num_of_branch_nodes = len([n for n in deg if deg[n] > 1])
-    #     num_of_endnodes = len([n for n in deg if deg[n] == 1])
-    #     num_of_nodes_with_no_edge = len([n for n in deg if deg[n] == 0])
-    #     exp_nodes = test_skeleton.nx_graph.nodes()
-    #     exp_edges = test_skeleton.nx_graph.edges()
-    #
-    #     test_skeleton.interpolate_edges(voxel_step_size=2)
-    #     self.assertEqual(num_of_branch_nodes, len([n for n in deg if deg[n] > 1]))
-    #     self.assertEqual(num_of_endnodes, len([n for n in deg if deg[n] == 1]))
-    #     self.assertEqual(num_of_nodes_with_no_edge, len([n for n in deg if deg[n] == 0]))
-    #     self.assertNotEqual(exp_nodes, test_skeleton.nx_graph.nodes())
-    #     self.assertNotEqual(exp_edges, test_skeleton.nx_graph.edges())
-    #
-    #     # Test interpolation with voxel step size too big and check that the graph does not change at all.
-    #     test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
-    #     test_skeleton.initialize_from_datapoints(nodes_pos_phys, vp_type_voxel=False, edgelist=edges)
-    #     exp_nodes = test_skeleton.nx_graph.nodes()
-    #     exp_edges = test_skeleton.nx_graph.edges()
-    #
-    #     test_skeleton.interpolate_edges(voxel_step_size=50)
-    #     self.assertEqual(exp_nodes, test_skeleton.nx_graph.nodes())
-    #     self.assertEqual(exp_edges, test_skeleton.nx_graph.edges())
-
     def test_interpolateSkeleton(self):
         test_skeleton = Skeleton(voxel_size=[10., 10., 20.])
         nodes_pos_phys = np.array([[0, 0, 0], [50., 50., 100.], [100., 100., 200.], [100., 100., 300.]])
@@ -223,7 +178,6 @@ class TestSkeletonTools(unittest.TestCase):
         self.assertEqual(exp_nodes, test_skeleton.nx_graph.nodes())
         self.assertEqual(exp_edges, test_skeleton.nx_graph.edges())
 
-
     def test_getNodeIdsOfEndpoints(self):
         # test correct number and node id of edges for branched graph
         test_skeleton_end = Skeleton(voxel_size=np.array([1.,1.,2.]))
@@ -252,7 +206,6 @@ class TestSkeletonTools(unittest.TestCase):
 
         all_endpoints = test_skeleton_end.get_node_ids_of_endpoints()
         self.assertEqual(len(all_endpoints), 0)
-
 
     def test_getPrecision(self):
         # test normal case where one node more predicted than in target skeleton
@@ -303,8 +256,7 @@ class TestSkeletonTools(unittest.TestCase):
         fct_precision   = Sk_target.get_precision(other=Sk_pred, tolerance_distance=tolerance_distance)
         self.assertEqual(human_precision, fct_precision)
 
-
-    def getRecall(self):
+    def test_getRecall(self):
         # normal case
         Sk_target = Skeleton()
         nodes_target = np.array([[0, 0, 0], [5, 5, 10], [5, 5, 15], [20, 20, 20]])
@@ -313,7 +265,7 @@ class TestSkeletonTools(unittest.TestCase):
                                              datapoints_type='nparray')
         Sk_pred = Skeleton()
         nodes_pred = np.array([[0, 0, 5], [5, 5, 15], [10, 15, 25], [20, 25, 40]])
-        edges_pred = ((0, 1), (1, 2), (2, 3), (3, 4))
+        edges_pred = ((0, 1), (1, 2), (2, 3))
         Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
                                            datapoints_type='nparray')
         tolerance_distance = 5
@@ -349,11 +301,33 @@ class TestSkeletonTools(unittest.TestCase):
         Sk_pred.initialize_from_datapoints(datapoints=nodes_pred, vp_type_voxel=True, edgelist=edges_pred,
                                            datapoints_type='nparray')
         tolerance_distance = 0.
-        human_recall = (1. + 1.) / len(nodes_pred)
+        human_recall = (1. + 1.+ 1.) / len(nodes_pred)
         fct_recall = Sk_target.get_precision(other=Sk_pred, tolerance_distance=tolerance_distance)
         self.assertEqual(human_recall, fct_recall)
 
+    def test_getDistanceToSkeleton(self):
+        # normal case and if exactly at the same position
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [5, 5, 10], [10, 10, 10]])
+        edges_target = ((0, 1),(1, 2))
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        nodes_pred = np.array([[0, 0, 0], [5, 5, 15]])
+        true_distances = np.array([0., 5.])
+        distance_to_cl = Sk_target.get_distance_to_skeleton(x=nodes_pred)
+        self.assertTrue(np.array_equal(true_distances, distance_to_cl))
 
+        # check if interpolated lines are taken into account
+        Sk_target = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [20, 20, 20]])
+        edges_target = [(0, 1)]
+        Sk_target.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+        nodes_pred = np.array([[0, 0, 0], [5, 5, 5], [10, 10, 10]])
+
+        true_distances = np.array([0., 0., 0.])
+        distance_to_cl = Sk_target.get_distance_to_skeleton(x=nodes_pred)
+        self.assertTrue(np.array_equal(true_distances, distance_to_cl))
 
 
 
