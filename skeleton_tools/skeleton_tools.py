@@ -256,13 +256,15 @@ class Skeleton(object):
         return
 
 
-    def write_to_itk(self, outputfilename='data_test_itk', diameter_per_node=None, overwrite_existing=False):
+    def write_to_itk(self, outputfilename='data_test_itk', skeleton_id=None, diameter_per_node=None, overwrite_existing=False):
         """ Write skeleton to itk format (see example file in skeleton_tools/test_data_itk.txt)
 
         Parameters
         ----------
             outputfilename: string
                 path and name where to store file to
+            skeleton_id:    int,
+                Colour ID of skeleton in Volume Viewer (e.g. 0: black)
             diameter_per_node: numpy array, shape: [1 x number_of_nodes()), default: 2.*np.ones(self.nx_graph.number_of_nodes())
                 array to define the diameter for every node. Represents the diameter shown in the viewer not the
                 actual diameter of the neuron.
@@ -278,7 +280,7 @@ class Skeleton(object):
                 outputfilename) + '.txt'
 
         with open(outputfilename + '.txt', 'w') as d_file:
-            np.savetxt(d_file, np.array(["ID " + str(self.seg_id)]), '%s')
+            np.savetxt(d_file, np.array(["ID " + str(skeleton_id)]), '%s')
             np.savetxt(d_file, np.array(["POINTS " + str(self.nx_graph.number_of_nodes()) + " FLOAT"]), '%s')
             for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
                 if node_attr['position'].voxel is None:
@@ -305,6 +307,7 @@ class Skeleton(object):
 
     def read_from_itk(self, inputfilename):
         return
+
 
     def calculate_total_phys_length(self):
         """ Calculate total phys length. """
@@ -518,8 +521,9 @@ class Skeleton(object):
         if not hasattr(other, 'kdtree_of_nodes'):
             other.get_kdtree_from_datapoints(VP_type='voxel')
 
-        # iterate over target nodes and check in predicted nodes for nodes closer than tolerance_distance indicating that this target node was recalled
-        # ge list which contains one list of close_nodes for every node in self/target_skeleton
+        # iterate over target nodes and check in predicted nodes for nodes closer than tolerance_distance indicating
+        # that this target node was recalled
+        # get list which contains one list of close_nodes for every node in self/target_skeleton
         close_nodes_per_target_node = self.kdtree_of_nodes.query_ball_tree(other=other.kdtree_of_nodes, r=tolerance_distance)
         total_num_nodes = self.nx_graph.number_of_nodes()
         only_nonempty_close_nodes = filter(None, close_nodes_per_target_node)
