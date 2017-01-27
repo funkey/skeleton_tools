@@ -349,6 +349,8 @@ class Skeleton(object):
         cur_node = u
         cur_pos  = pos_u.copy()
         min_one_node_added = False
+
+        max_node_id = np.max(self.nx_graph.nodes())
         for step in range(number_of_new_nodes):
 
             if VP_type == 'voxel':
@@ -360,7 +362,8 @@ class Skeleton(object):
                 # This happens if the direction_vector steps is too small to have an effect in a single step.
                 continue
 
-            new_node_id = np.max(self.nx_graph.nodes())+1
+            new_node_id = max_node_id.copy()+1
+            max_node_id = new_node_id.copy()
             if VP_type == 'voxel':
                 self.add_node(new_node_id, pos_voxel=new_pos)
                 self.nx_graph.add_edge(cur_node, new_node_id)
@@ -370,6 +373,8 @@ class Skeleton(object):
             min_one_node_added = True
             cur_node = new_node_id.copy()
             cur_pos = new_pos.copy()
+
+
 
         # Add final edge to he last inserted new node and the original v node and remove original edge u, v.
         if min_one_node_added:
@@ -550,6 +555,3 @@ class Skeleton(object):
         # "query()" returns distance to closest points AND their location, here only distance considered
         distance_to_cl = self.kdtree_of_nodes.query(x=x, k=1, eps=0, p=2, distance_upper_bound=np.inf)[0]
         return distance_to_cl
-
-
-
