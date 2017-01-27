@@ -9,7 +9,7 @@ Skeleton_tools
 
 import networkx as nx
 import numpy as np
-import os
+import os, copy
 import knossos_utils
 from scipy.spatial import KDTree
 
@@ -475,22 +475,24 @@ class Skeleton(object):
             precision: float,
                 precision: true_positives / (true_positives+false_positives)
                            percentage of nodes in other which lie within tolerance_distance to any node in self
-        Notes
+         Notes
         ---------
             Only the self/target skeleton is edge-interpolated
         """
-        # other = predicted skeleton, self = target_skeleton
-        self.interpolate_edges(step_size=1, VP_type='voxel')
+        copy_self = copy.deepcopy(self)
+        assert self.nx_graph.number_of_nodes() == copy_self.nx_graph.number_of_nodes()
+
+        copy_self.interpolate_edges(step_size=1, VP_type='voxel')
 
         # create kdtree if does not exist yet
-        if not hasattr(self, 'kdtree_of_nodes'):
-            self.get_kdtree_from_datapoints(VP_type='voxel')
+        if not hasattr(copy_self, 'kdtree_of_nodes'):
+            copy_self.get_kdtree_from_datapoints(VP_type='voxel')
         if not hasattr(other, 'kdtree_of_nodes'):
             other.get_kdtree_from_datapoints(VP_type='voxel')
 
         # iterate over pred nodes and check in target_skeleton for nodes closer than tolerance_distance
         # get list which contains one list of close_nodes for every node in other/predicted skeleton
-        close_nodes_per_pred_node = other.kdtree_of_nodes.query_ball_tree(other=self.kdtree_of_nodes, r=tolerance_distance)
+        close_nodes_per_pred_node = other.kdtree_of_nodes.query_ball_tree(other=copy_self.kdtree_of_nodes, r=tolerance_distance)
         total_nodes_pred = other.nx_graph.number_of_nodes()
         only_nonempty_close_nodes = filter(None, close_nodes_per_pred_node)
         num_correct_nodes = float(len(only_nonempty_close_nodes))
@@ -519,17 +521,20 @@ class Skeleton(object):
         ---------
             Only the predicted skeleton is edge-interpolated
         """
+        copy_other = copy.deepcopy(other)
+        assert other.nx_graph.number_of_nodes() == copy_other.nx_graph.number_of_nodes()
+
         # other = predicted skeleton, self = target_skeleton
         if not hasattr(self, 'kdtree_of_nodes'):
             self.get_kdtree_from_datapoints(VP_type='voxel')
-        other.interpolate_edges(step_size=1, VP_type='voxel')
-        if not hasattr(other, 'kdtree_of_nodes'):
-            other.get_kdtree_from_datapoints(VP_type='voxel')
+        copy_other.interpolate_edges(step_size=1, VP_type='voxel')
+        if not hasattr(copy_other, 'kdtree_of_nodes'):
+            copy_other.get_kdtree_from_datapoints(VP_type='voxel')
 
         # iterate over target nodes and check in predicted nodes for nodes closer than tolerance_distance indicating
         # that this target node was recalled
         # get list which contains one list of close_nodes for every node in self/target_skeleton
-        close_nodes_per_target_node = self.kdtree_of_nodes.query_ball_tree(other=other.kdtree_of_nodes, r=tolerance_distance)
+        close_nodes_per_target_node = self.kdtree_of_nodes.query_ball_tree(other=copy_other.kdtree_of_nodes, r=tolerance_distance)
         total_num_nodes = self.nx_graph.number_of_nodes()
         only_nonempty_close_nodes = filter(None, close_nodes_per_target_node)
         num_recalled_nodes = float(len(only_nonempty_close_nodes))
@@ -549,9 +554,12 @@ class Skeleton(object):
             distance_to_cl: array of floats, [N,]
                 min. distance to centerline for every point in distant_pts
         """
-        self.interpolate_edges(step_size=1, VP_type='voxel')
-        if not hasattr(self, 'kdtree_of_nodes'):
-            self.get_kdtree_from_datapoints(VP_type='voxel')
+        copy_self = copy.deepcopy(self)
+        assert self.nx_graph.number_of_nodes() == copy_self.nx_graph.number_of_nodes()
+
+        copy_self.interpolate_edges(step_size=1, VP_type='voxel')
+        if not hasattr(copy_self, 'kdtree_of_nodes'):
+            copy_self.get_kdtree_from_datapoints(VP_type='voxel')
         # "query()" returns distance to closest points AND their location, here only distance considered
-        distance_to_cl = self.kdtree_of_nodes.query(x=x, k=1, eps=0, p=2, distance_upper_bound=np.inf)[0]
+        distance_to_cl = copy_self.kdtree_of_nodes.query(x=x, k=1, eps=0, p=2, distance_upper_bound=np.inf)[0]
         return distance_to_cl
