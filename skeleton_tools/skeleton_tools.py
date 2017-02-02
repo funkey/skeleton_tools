@@ -498,6 +498,7 @@ class Skeleton(object):
         num_correct_nodes = float(len(only_nonempty_close_nodes))
 
         precision = num_correct_nodes / total_nodes_pred
+        del copy_self
         return precision
 
 
@@ -540,6 +541,7 @@ class Skeleton(object):
         num_recalled_nodes = float(len(only_nonempty_close_nodes))
 
         recall = num_recalled_nodes / total_num_nodes
+        del copy_other
         return recall
 
 
@@ -562,4 +564,5 @@ class Skeleton(object):
             copy_self.get_kdtree_from_datapoints(VP_type='voxel')
         # "query()" returns distance to closest points AND their location, here only distance considered
         distance_to_cl = copy_self.kdtree_of_nodes.query(x=x, k=1, eps=0, p=2, distance_upper_bound=np.inf)[0]
+        del copy_self
         return distance_to_cl
