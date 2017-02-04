@@ -257,7 +257,8 @@ class Skeleton(object):
 
 
     def write_to_itk(self, outputfilename='data_test_itk', skeleton_id=None, diameter_per_node=None, overwrite_existing=False):
-        """ Write skeleton to itk format (see example file in skeleton_tools/test_data_itk.txt)
+        """ Write skeleton to itk format (see example file in skeleton_tools/test_data_itk.txt). The physical coordinates
+            are written to the itk format.
 
         Parameters
         ----------
@@ -271,8 +272,13 @@ class Skeleton(object):
             overwrite_existing: bool
                 if True, overwrite existing file with the same name, if False: create new file or assertion error
 
-        """
+        Note
+        ----
+            When looking at the images with the volume viewer, please add --resX=self.voxel_size[2] --resY=self.voxel_size[1]
+                --resZ=self.voxel_size[0] to appropriately scale the skeleton
 
+
+        """
         assert self.nx_graph is not None
 
         if not overwrite_existing:
@@ -283,12 +289,12 @@ class Skeleton(object):
             np.savetxt(d_file, np.array(["ID " + str(skeleton_id)]), '%s')
             np.savetxt(d_file, np.array(["POINTS " + str(self.nx_graph.number_of_nodes()) + " FLOAT"]), '%s')
             for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
-                if node_attr['position'].voxel is None:
+                if node_attr['position'].phys is None:
                     assert self.voxel_size is not None
-                    assert self.nx_graph.node[node_id]['position'].phys is not None
-                    position = node_attr['position'].phys * self.voxel_size
+                    assert self.nx_graph.node[node_id]['position'].voxel is not None
+                    position = node_attr['position'].voxel * self.voxel_size
                 else:
-                    position = node_attr['position'].voxel
+                    position = node_attr['position'].phys
                 np.savetxt(d_file, np.fliplr(np.reshape(position, (1, 3))), '%i')
 
             np.savetxt(d_file, np.array(["\nEDGES " + str(self.nx_graph.number_of_edges())]), '%s')
@@ -301,7 +307,6 @@ class Skeleton(object):
             else:
                 assert len(diameter_per_node) == self.nx_graph.number_of_nodes()
             np.savetxt(d_file, diameter_per_node, '%.4e')
-
         return
 
 
