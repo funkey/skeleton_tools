@@ -150,9 +150,9 @@ class Skeleton(object):
             self.add_node(node_id, pos_voxel=l1_graph.positions[node_id])
             self.nx_graph.node[node_id]['orientation'] = l1_graph.orientations[node_id]
             self.nx_graph.node[node_id]['partner'] = l1_graph.partner[node_id] 
-        
-        for edge in l1_graph.edges:
-            self.add_edge(edge[0], edge[1])
+       
+        self.nx_graph.add_edges_from(l1_graph.edges)
+
         
 
     def add_node(self, node_id, pos_voxel=None, pos_phys=None):
