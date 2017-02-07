@@ -143,6 +143,18 @@ class Skeleton(object):
             self.nx_graph.add_edges_from(edgelist)
 
 
+    def initialize_from_l1_graph(self, l1_graph):
+        assert self.nx_graph.number_of_nodes() == 0
+        
+        for node_id in xrange(l1_graph.num_nodes):
+            self.add_node(node_id, pos_voxel=l1_graph.positions[node_id])
+            self.nx_graph.node[node_id]['orientation'] = l1_graph.orientations[node_id]
+            self.nx_graph.node[node_id]['partner'] = l1_graph.partner[node_id] 
+        
+        for edge in l1_graph.edges:
+            self.add_edge(edge[0], edge[1])
+        
+
     def add_node(self, node_id, pos_voxel=None, pos_phys=None):
         """ Add node to exisiting skeleton
 
