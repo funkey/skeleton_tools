@@ -335,7 +335,7 @@ class TestSkeletonTools(unittest.TestCase):
         try:
             import augment
         except ImportError:
-            pass
+            return
 
         # normal case and if exactly at the same position
         test_skeleton = Skeleton()
