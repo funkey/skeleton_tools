@@ -348,20 +348,19 @@ class TestSkeletonTools(unittest.TestCase):
         # Create transformation matrix.
         transformation = augment.create_identity_transformation(nodes_bb)
 
-        # rotate around z axis 90 degree clockwise.
+        # Rotate around z axis 90 degree anti-clockwise.
         transformation += augment.create_rotation_transformation(
             nodes_bb,
             math.pi/2)
-
 
         test_skeleton.apply_transformation(transformation)
         pred_pos0 = test_skeleton.nx_graph.node[0]['position'].voxel
         pred_pos1 = test_skeleton.nx_graph.node[1]['position'].voxel
         pred_pos2 = test_skeleton.nx_graph.node[2]['position'].voxel
 
-        exp_pos0 = np.array([0, 2, 0])
-        exp_pos1 = np.array([0, 1, 1])
-        exp_pos2 = np.array([1, 0, 2])
+        exp_pos0 = np.array([2, 0, 0])
+        exp_pos1 = np.array([2, 1, 1])
+        exp_pos2 = np.array([1, 2, 2])
 
         self.assertTrue((pred_pos0 == exp_pos0).all())
         self.assertTrue((pred_pos1 == exp_pos1).all())

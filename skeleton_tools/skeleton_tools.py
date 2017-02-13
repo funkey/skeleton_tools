@@ -590,7 +590,7 @@ class Skeleton(object):
         transformation matrix.
          Parameters
         ----------
-            transformation:    array, [3 x Z x X x Y]
+            transformation:    array, [3 x Z x Y x X]
                 Map with new coordination, e.g. coord [0, 0, 0] is mapped to transformation[:, 0, 0, 0]
 
         Notes
@@ -601,7 +601,7 @@ class Skeleton(object):
         for node_id, node_dict in self.nx_graph.nodes_iter(data=True):
             cur_pos_voxel = node_dict['position'].voxel.astype(np.int)
             x, y, z = cur_pos_voxel
-            z, x, y = transformation[:, z, x, y]
+            z, y, x = transformation[:, z, y, x]
             new_pos_voxel = np.array([x, y, z])
             new_pos_voxel = new_pos_voxel.astype(np.int)
 
