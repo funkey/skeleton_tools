@@ -2,6 +2,7 @@ import numpy as np
 import unittest
 from skeleton_tools import Skeleton, VP_type, SkeletonContainer
 import networkx as nx
+import math
 from scipy.spatial import distance
 
 
@@ -328,6 +329,46 @@ class TestSkeletonTools(unittest.TestCase):
         true_distances = np.array([0., 0., 0.])
         distance_to_cl = Sk_target.get_distance_to_skeleton(x=nodes_pred)
         self.assertTrue(np.array_equal(true_distances, distance_to_cl))
+
+    def test_applyTransformation(self):
+
+        try:
+            import augment
+        except ImportError:
+            pass
+
+        # normal case and if exactly at the same position
+        test_skeleton = Skeleton()
+        nodes_target = np.array([[0, 0, 0], [1, 0, 1], [2, 1, 2]])
+        edges_target = ((0, 1),(1, 2))
+        test_skeleton.initialize_from_datapoints(datapoints=nodes_target, vp_type_voxel=True, edgelist=edges_target,
+                                             datapoints_type='nparray')
+
+        nodes_bb = (3, 3, 3)
+        # Create transformation matrix.
+        transformation = augment.create_identity_transformation(nodes_bb)
+
+        # rotate around z axis 90 degree clockwise.
+        transformation += augment.create_rotation_transformation(
+            nodes_bb,
+            math.pi/2)
+
+
+        test_skeleton.apply_transformation(transformation)
+        pred_pos0 = test_skeleton.nx_graph.node[0]['position'].voxel
+        pred_pos1 = test_skeleton.nx_graph.node[1]['position'].voxel
+        pred_pos2 = test_skeleton.nx_graph.node[2]['position'].voxel
+
+        exp_pos0 = np.array([0, 2, 0])
+        exp_pos1 = np.array([0, 1, 1])
+        exp_pos2 = np.array([1, 0, 2])
+
+        self.assertTrue((pred_pos0 == exp_pos0).all())
+        self.assertTrue((pred_pos1 == exp_pos1).all())
+        self.assertTrue((pred_pos2 == exp_pos2).all())
+
+
+
 
 
 

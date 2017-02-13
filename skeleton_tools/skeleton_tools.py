@@ -572,6 +572,7 @@ class Skeleton(object):
          ---------
             distance_to_cl: array of floats, [N,]
                 min. distance to centerline for every point in distant_pts
+
         """
         copy_self = copy.deepcopy(self)
         assert self.nx_graph.number_of_nodes() == copy_self.nx_graph.number_of_nodes()
@@ -583,3 +584,38 @@ class Skeleton(object):
         distance_to_cl = copy_self.kdtree_of_nodes.query(x=x, k=1, eps=0, p=2, distance_upper_bound=np.inf)[0]
         del copy_self
         return distance_to_cl
+
+    def apply_transformation(self, transformation):
+        """Applies a transformation matrix to coordinates of the graph e.g. skeleton is rotated based on
+        transformation matrix.
+         Parameters
+        ----------
+            transformation:    array, [3 x Z x X x Y]
+                Map with new coordination, e.g. coord [0, 0, 0] is mapped to transformation[:, 0, 0, 0]
+
+        Notes
+        ---------
+            Nodes and edges IDs stay the same, but skeleton is altered in space. Skeleton might contain negative
+            coordinates.
+        """
+        for node_id, node_dict in self.nx_graph.nodes_iter(data=True):
+            cur_pos_voxel = node_dict['position'].voxel.astype(np.int)
+            x, y, z = cur_pos_voxel
+            z, x, y = transformation[:, z, x, y]
+            new_pos_voxel = np.array([x, y, z])
+            new_pos_voxel = new_pos_voxel.astype(np.int)
+
+            if self.voxel_size is not None:
+                new_pos_phys = new_pos_voxel*self.voxel_size
+            else:
+                new_pos_phys = None
+            self.add_node(node_id, pos_voxel=new_pos_voxel, pos_phys=new_pos_phys)
+
+        # Remove edge dictionary, since features could have changed (such as direction vector).
+        for edge_id in self.nx_graph.edges_iter():
+            self.nx_graph.edge[edge_id] = {}
+
+
+
+
+
