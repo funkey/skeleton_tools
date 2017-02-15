@@ -75,6 +75,16 @@ class SkeletonContainer(object):
             skeleton.write_to_itk(outputfilename=outputfilename + '_' + str(skeleton.identifier),
                                   diameter_per_node=diameter_per_node, overwrite_existing=overwrite_existing)
 
+    def from_skeletons_to_binary_mask(self, mask_shape, thickness=2):
+        mask = np.zeros(mask_shape, dtype=np.uint8)
+        for skeleton in self.skeleton_list:
+            for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
+                voxel_pos = node_dic['position'].voxel
+                x, y, z = voxel_pos
+                mask[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = 1
+        return mask
+
+
 
 class Skeleton(object):
     def __init__(self, identifier=None, voxel_size=None, seg_id=None, nx_graph=None):
