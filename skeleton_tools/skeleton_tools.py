@@ -75,7 +75,15 @@ class SkeletonContainer(object):
             skeleton.write_to_itk(outputfilename=outputfilename + '_' + str(skeleton.identifier),
                                   diameter_per_node=diameter_per_node, overwrite_existing=overwrite_existing)
 
-    def from_skeletons_to_binary_mask(self, mask_shape, thickness=2):
+    def from_skeletons_to_binary_mask(self, mask_shape, thickness=4):
+        """ Writes all skeletons into a single volume (as a binary mask).
+        Parameters
+        ----------
+        mask_shape: shape of the newly created volume.
+        thickness: the length of the cube each node is represented with in the volume. Set to 1 if only the voxel
+        position itself should be marked.
+        """
+        thickness //= 2
         mask = np.zeros(mask_shape, dtype=np.uint8)
         for skeleton in self.skeleton_list:
             for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
