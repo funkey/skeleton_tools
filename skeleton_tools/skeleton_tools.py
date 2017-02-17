@@ -710,20 +710,14 @@ class Skeleton(object):
 
 
 
-
-
-
-
-
-
 def dda_round(x):
     return (x + 0.5).astype(int)
 
 
 class DDA3:
     def __init__(self, start, end, scaling=np.array([1, 1, 1])):
-        assert (start.dtype == int)
-        assert (end.dtype == int)
+        assert np.array_equal(start - np.floor(start), np.zeros(len(start)))
+        assert np.array_equal(end - np.floor(end), np.zeros(len(end)))
 
         self.start = (start * scaling).astype(float)
         self.end = (end * scaling).astype(float)
