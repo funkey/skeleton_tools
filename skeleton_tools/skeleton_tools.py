@@ -12,6 +12,7 @@ import numpy as np
 import os, copy
 import knossos_utils
 from scipy.spatial import KDTree
+import operator
 
 
 class VP_type(object):
@@ -347,6 +348,7 @@ class Skeleton(object):
     def calculate_total_phys_length(self):
         """ Calculate total phys length. """
         total_path_length = 0
+        self.fill_in_node_features('position_phys')
         for u, v, edge_attr in self.nx_graph.edges_iter(data=True):
             if not 'length' in edge_attr:
                 self._add_edge_features(u, v, 'length')
@@ -409,10 +411,45 @@ class Skeleton(object):
             cur_node = new_node_id.copy()
             cur_pos = new_pos.copy()
 
-
-
         # Add final edge to he last inserted new node and the original v node and remove original edge u, v.
         if min_one_node_added:
+            self.nx_graph.add_edge(cur_node, v)
+            self.nx_graph.remove_edge(u, v)
+
+    def _interpolate_edge_linebased(self, u, v, step_size, VP_type):
+        if not 'length' in self.nx_graph.edge[u][v]:
+            self._add_edge_features(u, v, 'length')
+
+        if VP_type == 'voxel':
+            length_step = self.nx_graph.edge[u][v]['length'].voxel
+            assert length_step is not None
+            if length_step <= step_size:
+                return
+            pos_u = self.nx_graph.node[u]['position'].voxel
+            pos_v = self.nx_graph.node[v]['position'].voxel
+
+        elif VP_type == 'phys':
+            length_step = self.nx_graph.edge[u][v]['length'].phys
+            assert length_step is not None
+            if length_step <= step_size:
+                return
+            pos_u = self.nx_graph.node[u]['position'].phys
+            pos_v = self.nx_graph.node[v]['position'].phys
+
+        dda = DDA3(pos_u, pos_v)
+        coord_on_line = dda.draw()
+        coord_on_line = coord_on_line[1:-1] # Start and end are included in the list.
+        cur_node = u
+
+        for ii, coord in enumerate(coord_on_line):
+            new_node_id = np.max(self.nx_graph.nodes())+1
+            if VP_type == 'voxel':
+                self.add_node(new_node_id, pos_voxel=coord)
+                self.nx_graph.add_edge(cur_node, new_node_id)
+            cur_node = new_node_id.copy()
+
+        # Add final edge to he last inserted new node and the original v node and remove original edge u, v.
+        if len(coord_on_line) > 0:
             self.nx_graph.add_edge(cur_node, v)
             self.nx_graph.remove_edge(u, v)
 
@@ -436,11 +473,23 @@ class Skeleton(object):
             self.fill_in_node_features('position_voxel')
         elif VP_type == 'phys':
             self.fill_in_node_features('position_phys')
+        if step_size > 1 or VP_type == 'phys':
+            print 'using old interpolation function, new (better) interpolation function only implemented for ' \
+                  'voxel_size = 1 and VP_type = voxel, parameter set to ' \
+                  'voxel_size = %i and VP_type = %s' %(step_size, VP_type)
 
         # Get the list of all edges, before additional edges are inserted
         edges = self.nx_graph.edges()
         for u, v in edges:
-            self._interpolate_edge(u, v, step_size=step_size, VP_type=VP_type)
+            if step_size > 1 or VP_type == 'phys':
+                self._interpolate_edge(u, v, step_size=step_size, VP_type=VP_type)
+            else:
+                self._interpolate_edge_linebased(u, v, step_size=step_size, VP_type=VP_type)
+
+        # Remove edge dictionary, since features could have changed (such as direction vector).
+        for edge_id in self.nx_graph.edges_iter():
+            self.nx_graph.edge[edge_id] = {}
+
 
 
     def get_node_ids_of_endpoints(self):
@@ -632,6 +681,35 @@ class Skeleton(object):
         # Remove edge dictionary, since features could have changed (such as direction vector).
         for edge_id in self.nx_graph.edges_iter():
             self.nx_graph.edge[edge_id] = {}
+
+
+def dda_round(x):
+    return (x + 0.5).astype(int)
+
+
+class DDA3:
+    def __init__(self, start, end, scaling=np.array([1, 1, 1])):
+        assert (start.dtype == int)
+        assert (end.dtype == int)
+
+        self.start = (start * scaling).astype(float)
+        self.end = (end * scaling).astype(float)
+        self.line = [dda_round(self.start)]
+
+        self.max_direction, self.max_length = max(enumerate(abs(self.end - self.start)), key=operator.itemgetter(1))
+        self.dv = (self.end - self.start) / self.max_length
+
+    def draw(self):
+        for step in range(int(self.max_length)):
+            self.line.append(dda_round((step + 1) * self.dv + self.start))
+
+        assert (np.all(self.line[-1] == self.end))
+
+        for n in xrange(len(self.line) - 1):
+            assert (np.linalg.norm(self.line[n + 1] - self.line[n]) <= np.sqrt(3))
+
+        return self.line
+
 
 
 
