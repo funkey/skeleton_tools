@@ -367,6 +367,40 @@ class TestSkeletonTools(unittest.TestCase):
         self.assertTrue((pred_pos2 == exp_pos2).all())
 
 
+    def test_ShiftSkeleton(self):
+        Sk = Skeleton()
+        nodes = np.array([[0, 0, 0], [5, 5, 10], [10, 10, 10]])
+        edges = ((0, 1),(1, 2))
+        Sk.initialize_from_datapoints(datapoints=nodes, vp_type_voxel=True, edgelist=edges,
+                                             datapoints_type='nparray')
+
+        offset_1 = np.asarray([1,1,1])
+        new_pos0 = nodes[0] + offset_1
+        Sk.shift_skeleton(offset=offset_1, VP_type='voxel')
+        pos0 = Sk.nx_graph.node[0]['position'].voxel
+        self.assertTrue(np.array_equal(new_pos0, pos0))
+        self.assertEqual(None, Sk.nx_graph.node[0]['position'].phys)
+
+
+        Sk = Skeleton()
+        nodes = np.array([[0, 0, 0], [5, 5, 10], [10, 10, 10]])
+        edges = ((0, 1),(1, 2))
+        Sk.initialize_from_datapoints(datapoints=nodes, vp_type_voxel=False, edgelist=edges,
+                                             datapoints_type='nparray')
+        offset_2 = np.asarray([1,2,3])
+        new_pos0 = nodes[0] + offset_2
+        Sk.shift_skeleton(offset=offset_2, VP_type='phys')
+        pos0 = Sk.nx_graph.node[0]['position'].phys
+        self.assertTrue(np.array_equal(new_pos0, pos0))
+        self.assertEqual(None, Sk.nx_graph.node[0]['position'].voxel)
+
+
+
+
+
+
+
+
 
 
 

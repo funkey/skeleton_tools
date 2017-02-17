@@ -172,7 +172,6 @@ class Skeleton(object):
        
         self.nx_graph.add_edges_from(l1_graph.edges)
 
-        
 
     def add_node(self, node_id, pos_voxel=None, pos_phys=None):
         """ Add node to exisiting skeleton
@@ -416,6 +415,7 @@ class Skeleton(object):
             self.nx_graph.add_edge(cur_node, v)
             self.nx_graph.remove_edge(u, v)
 
+
     def _interpolate_edge_linebased(self, u, v, step_size, VP_type):
         if not 'length' in self.nx_graph.edge[u][v]:
             self._add_edge_features(u, v, 'length')
@@ -489,7 +489,6 @@ class Skeleton(object):
         # Remove edge dictionary, since features could have changed (such as direction vector).
         for edge_id in self.nx_graph.edges_iter():
             self.nx_graph.edge[edge_id] = {}
-
 
 
     def get_node_ids_of_endpoints(self):
@@ -652,6 +651,7 @@ class Skeleton(object):
         del copy_self
         return distance_to_cl
 
+
     def apply_transformation(self, transformation):
         """Applies a transformation matrix to coordinates of the graph e.g. skeleton is rotated based on
         transformation matrix.
@@ -681,6 +681,39 @@ class Skeleton(object):
         # Remove edge dictionary, since features could have changed (such as direction vector).
         for edge_id in self.nx_graph.edges_iter():
             self.nx_graph.edge[edge_id] = {}
+
+
+    def shift_skeleton(self, offset, VP_type):
+        """
+        Add offset to every node in skeleton for the coords defined by VP_type.
+        Delete coordinates of the other type.
+
+        Parameters
+        ----------
+            offset:  ndarray,
+                coordinate offset for all three dimensions [x,y,z]
+            VP_type: str, 'voxel' or 'phys'
+                type of coordinates to which the defined offset should be applied.
+
+        """
+        if VP_type == 'voxel':
+            self.fill_in_node_features('position_voxel')
+            for node_id in self.nx_graph.nodes():
+                self.nx_graph.node[node_id]['position'].voxel += offset
+                self.nx_graph.node[node_id]['position'].phys   = None
+
+        elif VP_type == 'phys':
+            self.fill_in_node_features('position_phys')
+            for node_id in self.nx_graph.nodes():
+                self.nx_graph.node[node_id]['position'].phys += offset
+                self.nx_graph.node[node_id]['position'].voxel = None
+
+
+
+
+
+
+
 
 
 def dda_round(x):
