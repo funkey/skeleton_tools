@@ -395,16 +395,50 @@ class TestSkeletonTools(unittest.TestCase):
         self.assertEqual(None, Sk.nx_graph.node[0]['position'].voxel)
 
 
+    def test_CheckPointInsideBb(self):
+        Sk = Skeleton()
+        nodes = np.array([[0, 0, 0], [5, 5, 5], [6,6,6], [8,8,8]])
+        edges = ((0, 1),(1, 2),(2,3))
+        Sk.initialize_from_datapoints(datapoints=nodes, vp_type_voxel=True, edgelist=edges,
+                                             datapoints_type='nparray')
 
+        bb_min = [1,1,1]
+        bb_max = [6,6,6]
+        # check points between min und max and exactly min and max are still counted as inside
+        self.assertTrue(Sk.check_point_inside_bb([1,1,1], bb_min=bb_min, bb_max=bb_max))
+        self.assertTrue(Sk.check_point_inside_bb([4,4,4], bb_min=bb_min, bb_max=bb_max))
+        self.assertTrue(Sk.check_point_inside_bb([6,6,6], bb_min=bb_min, bb_max=bb_max))
 
+        # check points smaller than min and larger than max are counted as outside
+        self.assertFalse(Sk.check_point_inside_bb([0,0,0], bb_min=bb_min, bb_max=bb_max))
+        self.assertFalse(Sk.check_point_inside_bb([7,7,7], bb_min=bb_min, bb_max=bb_max))
 
+    def test_CropGraphToBb(self):
+        bb_min = [1,1,1]
+        bb_max = [6,6,6]
 
+        Sk = Skeleton()
+        nodes = np.array([[0, 0, 0], [5, 5, 5], [6,6,6], [8,8,8]])
+        num_nodes_outside = 2
+        edges = ((0, 1),(1, 2),(2,3))
+        Sk.initialize_from_datapoints(datapoints=nodes, vp_type_voxel=True, edgelist=edges,
+                                             datapoints_type='nparray')
 
+        Sk2 = Skeleton()
+        nodes2 = np.array([[1, 1, 1], [5, 5, 5], [6,6,6]])
+        edges2 = ((0, 1),(1, 2))
+        Sk2.initialize_from_datapoints(datapoints=nodes2, vp_type_voxel=True, edgelist=edges2,
+                                             datapoints_type='nparray')
 
+        # example where 2 nodes outside
+        Sk.crop_graph_to_bb(bb_min, bb_max)
+        for node_id in Sk.nx_graph.nodes_iter():
+            self.assertTrue(Sk.check_point_inside_bb(Sk.nx_graph.node[node_id]['position'].voxel, bb_min, bb_max))
+        self.assertEqual(Sk.nx_graph.number_of_nodes(), len(nodes)-num_nodes_outside)
 
+        # example with no nodes outside
+        Sk2.crop_graph_to_bb(bb_min, bb_max)
+        for node_id in Sk2.nx_graph.nodes_iter():
+            self.assertTrue(Sk2.check_point_inside_bb(Sk2.nx_graph.node[node_id]['position'].voxel, bb_min, bb_max))
 
-
-
-
-
-
+        self.assertEqual(Sk2.nx_graph.number_of_nodes(), len(nodes2))

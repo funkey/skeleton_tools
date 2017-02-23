@@ -40,7 +40,6 @@ class SkeletonContainer(object):
                                                 outputfilename)
 
     def read_from_knossos_nml(self, inputfilename, voxel_size=None):
-
         skeleton_list = knossos_utils.from_nml_to_nx_skeletons(inputfilename)
         if voxel_size is not None:
             for skeleton in skeleton_list:
@@ -709,6 +708,36 @@ class Skeleton(object):
                 self.nx_graph.node[node_id]['position'].voxel = None
 
 
+    def crop_graph_to_bb(self, bb_min, bb_max):
+        removed_node_counter = 0
+        num_of_nodes = self.nx_graph.number_of_nodes()
+        for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
+            voxel_pos = node_attr['position'].voxel
+            if not self.check_point_inside_bb(voxel_pos, bb_min, bb_max):
+                self.nx_graph.remove_node(node_id)
+                removed_node_counter += 1
+
+        assert num_of_nodes-self.nx_graph.number_of_nodes() == removed_node_counter
+
+
+    def check_point_inside_bb(self, point, bb_min, bb_max):
+        check_inside = True
+        for dim in range(len(bb_min)):
+            pos = point[dim]
+            if pos < bb_min[dim]:
+                check_inside = False
+            elif pos > bb_max[dim]:
+                check_inside = False
+        return check_inside
+
+
+
+
+
+
+
+
+
 
 def dda_round(x):
     return (x + 0.5).astype(int)
@@ -730,14 +759,12 @@ class DDA3:
         for step in range(int(self.max_length)):
             self.line.append(dda_round((step + 1) * self.dv + self.start))
 
-        assert (np.all(self.line[-1] == self.end))
+        # assert (np.all(self.line[-1] == self.end))
 
         for n in xrange(len(self.line) - 1):
             assert (np.linalg.norm(self.line[n + 1] - self.line[n]) <= np.sqrt(3))
 
         return self.line
-
-
 
 
 
