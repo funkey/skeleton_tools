@@ -518,7 +518,7 @@ class TestSkeletonTools(unittest.TestCase):
         # check points between min und max and exactly min and max are still counted as inside
         self.assertTrue(Sk.check_point_inside_bb([1,1,1], bb_min=bb_min, bb_max=bb_max))
         self.assertTrue(Sk.check_point_inside_bb([4,4,4], bb_min=bb_min, bb_max=bb_max))
-        self.assertTrue(Sk.check_point_inside_bb([6,6,6], bb_min=bb_min, bb_max=bb_max))
+        self.assertTrue(Sk.check_point_inside_bb([5,5,5], bb_min=bb_min, bb_max=bb_max))
 
         # check points smaller than min and larger than max are counted as outside
         self.assertFalse(Sk.check_point_inside_bb([0,0,0], bb_min=bb_min, bb_max=bb_max))
@@ -526,7 +526,7 @@ class TestSkeletonTools(unittest.TestCase):
 
     def test_CropGraphToBb(self):
         bb_min = [1,1,1]
-        bb_max = [6,6,6]
+        bb_max = [7,7,7]
 
         Sk = Skeleton()
         nodes = np.array([[0, 0, 0], [5, 5, 5], [6,6,6], [8,8,8]])
