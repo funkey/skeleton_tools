@@ -59,7 +59,6 @@ def evaluate_segmentation_with_gt_skeletons(segmentation, sk_container,
     for ii, skeleton in enumerate(sk_container.skeleton_list):
         skeleton_id = ii + 1
         id_list, object_dict = skeleton.get_seg_ids(segmentation, size_thres=size_thres, return_objectdict=True)
-        skeleton.object_dict = object_dict
         all_ids_covered.extend(id_list)
         skel_dic[skeleton_id] = id_list
         for id in id_list:

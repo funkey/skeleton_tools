@@ -124,6 +124,8 @@ class Skeleton(object):
         else:
             self.nx_graph = nx.Graph()
 
+        self.object_dict = {}
+
     def initialize_from_datapoints(self, datapoints, vp_type_voxel, edgelist=None, datapoints_type='nparray'):
         """ Initializes a graph with provided datapoints. The node_id in the graph corresponds to the index number of the array.
 
@@ -738,7 +740,7 @@ class Skeleton(object):
             pos = point[dim]
             if pos < bb_min[dim]:
                 check_inside = False
-            elif pos > bb_max[dim]:
+            elif pos >= bb_max[dim]:
                 check_inside = False
         return check_inside
 
@@ -783,16 +785,23 @@ class Skeleton(object):
                 num_outside_of_segm += 1
 
         seg_col_unique = list(np.unique(seg_col))
+        seg_below_thres = []
         for seg in seg_col_unique:
             size = seg_col.count(seg)
             object_dict[seg].update({'size': size})
-
             if size < size_thres:
-                seg_col_unique.remove(seg)
+                seg_below_thres.append(seg)
+        for seg_to_rem in seg_below_thres:
+            seg_col_unique.remove(seg_to_rem)
+        self.object_dict = object_dict
+        for key, value in object_dict.iteritems():
+            assert len(value) == 2, value
         if return_objectdict:
             return np.asarray(seg_col_unique), object_dict
         else:
             return np.asarray(seg_col_unique)
+
+
 
 
 
