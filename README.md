@@ -4,7 +4,7 @@ Skeleton_tools is a python wrapper around the NetworkX (NX) Python package (http
     to read, write and work with directed and undirected skeleton graphs.
     
     
-    Dependencies (only python libraries):
+Dependencies
 ------------
-* networkx
-* scipy
+* networkx (python lib)
+* scipy (python lib)
