@@ -11,6 +11,7 @@ import networkx as nx
 import numpy as np
 import os, copy
 import knossos_utils
+# from openpyxl.writer.write_only import removed_method
 from scipy.spatial import KDTree
 import operator
 
@@ -92,6 +93,18 @@ class SkeletonContainer(object):
                 x, y, z = voxel_pos
                 mask[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = 1
         return mask
+
+    def split_into_cc(self):
+        """ Creates for each connected component in the nx_graphs a new skeleton instance.
+        """
+        new_skeleton_list = []
+        for skeleton in self.skeleton_list:
+            graph = skeleton.nx_graph
+            subgraphs = nx.connected_component_subgraphs(graph)
+            for subgraph in subgraphs:
+                new_skeleton = Skeleton(nx_graph=subgraph, voxel_size=skeleton.voxel_size)
+                new_skeleton_list.append(new_skeleton)
+        self.skeleton_list = new_skeleton_list
 
 
 
@@ -454,7 +467,7 @@ class Skeleton(object):
             self.nx_graph.remove_edge(u, v)
 
 
-    def interpolate_edges(self, step_size=1, VP_type=None):
+    def interpolate_edges(self, step_size=1, VP_type='voxel'):
         """ Interpolates all edges, meaning inserting additional nodes such that the length from one node to the
         other corresponds to voxel_step_size.
 
@@ -708,8 +721,80 @@ class Skeleton(object):
                 self.nx_graph.node[node_id]['position'].phys += offset
                 self.nx_graph.node[node_id]['position'].voxel = None
 
+    def crop_graph_to_bb(self, bb_min, bb_max):
+        removed_node_counter = 0
+        num_of_nodes = self.nx_graph.number_of_nodes()
+        for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
+            voxel_pos = node_attr['position'].voxel
+            if not self.check_point_inside_bb(voxel_pos, bb_min, bb_max):
+                self.nx_graph.remove_node(node_id)
+                removed_node_counter += 1
+
+        assert num_of_nodes-self.nx_graph.number_of_nodes() == removed_node_counter
 
 
+    def check_point_inside_bb(self, point, bb_min, bb_max):
+        check_inside = True
+        for dim in range(len(bb_min)):
+            pos = point[dim]
+            if pos < bb_min[dim]:
+                check_inside = False
+            elif pos > bb_max[dim]:
+                check_inside = False
+        return check_inside
+
+
+
+
+    def get_seg_ids(self, segmentation, size_thres=0, return_objectdict=False):
+        """
+        Extracts the IDs of the provided segmentation along the skeleton's trajectory.
+
+        Parameters
+        ----------
+            segmentation:  ndarray,
+                Cube representing a segmentation, can be smaller than the bounding box of the skeleton. If skeleton
+                lies outside of the cube, an empty list is returned.
+            size_thres: int
+                Only consider segments in which the skeleton has more than size_thres number of nodes.
+            return_objectdict: bool
+                If set to True, also returns an object_dict
+         Returns
+         ---------
+            seg_col_unique: numpy array
+                unique seg ids that were located along the skeleton's trajectory and where the number of nodes were
+                larger than size_thres
+            objectdict (optional): dict
+                a dictionary with seg_id as keys, and a dict as value with:
+                    1) 'coord' --> a voxel position of the skeleton within the segment (for debugging purpose)
+                    2) 'size' --> the number of nodes that lay within the segment
+                note: also returns the seg_ids that were excluded because of size_thres
+        """
+        assert len(segmentation.shape) == 3
+        seg_col = []
+        num_outside_of_segm = 0
+        object_dict = {}
+        for _, node_dict in self.nx_graph.nodes_iter(data=True):
+            voxel_pos = node_dict['position'].voxel
+            if self.check_point_inside_bb(voxel_pos, [0, 0, 0], segmentation.shape):
+                seg_id = segmentation[tuple(voxel_pos)]
+                seg_col.append(seg_id)
+                object_dict[seg_id] = {'coord': voxel_pos}
+            else:
+                num_outside_of_segm += 1
+
+        seg_col_unique = list(np.unique(seg_col))
+        for seg in seg_col_unique:
+            size = seg_col.count(seg)
+            object_dict[seg].update({'size': size})
+
+            if size < size_thres:
+                seg_col_unique.remove(seg)
+
+        if return_objectdict:
+            return np.asarray(seg_col_unique), object_dict
+        else:
+            return np.asarray(seg_col_unique)
 
 
 

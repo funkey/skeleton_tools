@@ -394,6 +394,117 @@ class TestSkeletonTools(unittest.TestCase):
         self.assertTrue(np.array_equal(new_pos0, pos0))
         self.assertEqual(None, Sk.nx_graph.node[0]['position'].voxel)
 
+    def test_CheckPointInsideBb(self):
+        Sk = Skeleton()
+        nodes = np.array([[0, 0, 0], [5, 5, 5], [6,6,6], [8,8,8]])
+        edges = ((0, 1),(1, 2),(2,3))
+        Sk.initialize_from_datapoints(datapoints=nodes, vp_type_voxel=True, edgelist=edges,
+                                             datapoints_type='nparray')
+
+        bb_min = [1,1,1]
+        bb_max = [6,6,6]
+        # check points between min und max and exactly min and max are still counted as inside
+        self.assertTrue(Sk.check_point_inside_bb([1,1,1], bb_min=bb_min, bb_max=bb_max))
+        self.assertTrue(Sk.check_point_inside_bb([4,4,4], bb_min=bb_min, bb_max=bb_max))
+        self.assertTrue(Sk.check_point_inside_bb([6,6,6], bb_min=bb_min, bb_max=bb_max))
+
+        # check points smaller than min and larger than max are counted as outside
+        self.assertFalse(Sk.check_point_inside_bb([0,0,0], bb_min=bb_min, bb_max=bb_max))
+        self.assertFalse(Sk.check_point_inside_bb([7,7,7], bb_min=bb_min, bb_max=bb_max))
+
+    def test_CropGraphToBb(self):
+        bb_min = [1,1,1]
+        bb_max = [6,6,6]
+
+        Sk = Skeleton()
+        nodes = np.array([[0, 0, 0], [5, 5, 5], [6,6,6], [8,8,8]])
+        num_nodes_outside = 2
+        edges = ((0, 1),(1, 2),(2,3))
+        Sk.initialize_from_datapoints(datapoints=nodes, vp_type_voxel=True, edgelist=edges,
+                                             datapoints_type='nparray')
+
+        Sk2 = Skeleton()
+        nodes2 = np.array([[1, 1, 1], [5, 5, 5], [6,6,6]])
+        edges2 = ((0, 1),(1, 2))
+        Sk2.initialize_from_datapoints(datapoints=nodes2, vp_type_voxel=True, edgelist=edges2,
+                                             datapoints_type='nparray')
+
+        # example where 2 nodes outside
+        Sk.crop_graph_to_bb(bb_min, bb_max)
+        for node_id in Sk.nx_graph.nodes_iter():
+            self.assertTrue(Sk.check_point_inside_bb(Sk.nx_graph.node[node_id]['position'].voxel, bb_min, bb_max))
+        self.assertEqual(Sk.nx_graph.number_of_nodes(), len(nodes)-num_nodes_outside)
+
+        # example with no nodes outside
+        Sk2.crop_graph_to_bb(bb_min, bb_max)
+        for node_id in Sk2.nx_graph.nodes_iter():
+            self.assertTrue(Sk2.check_point_inside_bb(Sk2.nx_graph.node[node_id]['position'].voxel, bb_min, bb_max))
+
+        self.assertEqual(Sk2.nx_graph.number_of_nodes(), len(nodes2))
+
+    def test_GetSegIDs(self):
+        segmentation = np.zeros((20, 20, 20))
+        segmentation[:, :, 0:7] = 1
+        segmentation[:, :, 7:10] = 2
+        segmentation[:, :, 10:16] = 3
+        segmentation[:, :, 16:20] = 4
+
+        Sk = Skeleton()
+        nodes = np.array([[10, 10, 0], [10, 10, 15]])
+        edges = [[0, 1]]
+        Sk.initialize_from_datapoints(datapoints=nodes, vp_type_voxel=True, edgelist=edges,
+                                      datapoints_type='nparray')
+
+        Sk.interpolate_edges()
+        # Test basics, collect all seg_ids.
+        seg_ids, object_dict = Sk.get_seg_ids(segmentation, size_thres=0, return_objectdict=True)
+        expected_segids = np.array([1, 2, 3])
+        self.assertTrue(set(expected_segids) == set(seg_ids))
+        self.assertEqual(7, object_dict[1]['size'])
+
+        # Test size_thres.
+        seg_ids, object_dict = Sk.get_seg_ids(segmentation, size_thres=4, return_objectdict=True)
+        expected_segids = np.array([1, 3])
+        self.assertTrue(set(expected_segids) == set(seg_ids))
+        self.assertEqual(3, object_dict[2]['size'])
+
+        # Test returning empty array if skeleton coordinates are outside the cube.
+        Sk.shift_skeleton([20, 20, 20], 'voxel')
+        seg_ids, object_dict = Sk.get_seg_ids(segmentation, size_thres=0, return_objectdict=True)
+        self.assertEqual(0, len(list(seg_ids)))
+        self.assertEqual(0, len(object_dict))
+
+    def test_SkContainerSplitIntoCCs(self):
+        # Represents a branching skeleton.
+        test_skeleton = Skeleton()
+        nodes_pos = np.array([[5, 0, 5], [5, 5, 5], [10, 10, 10], [15, 10, 8]])
+        edges = [(0, 1), (1, 2), (1, 3)]
+        test_skeleton.initialize_from_datapoints(nodes_pos, vp_type_voxel=True, edgelist=edges)
+        test_skeleton.interpolate_edges()
+        skeleton_container = SkeletonContainer([test_skeleton])
+
+        for skeleton in skeleton_container.skeleton_list:
+            for node_id, node_dic in skeleton.nx_graph.nodes_iter(data=True):
+                print node_id, node_dic['position'].voxel
+            print skeleton.nx_graph.edges()
+
+
+        for skeleton in skeleton_container.skeleton_list:
+            skeleton.crop_graph_to_bb([6, 6, 6], [20, 20, 20])
+
+        self.assertEqual(1, len(skeleton_container.skeleton_list))
+        skeleton_container.split_into_cc()
+
+        self.assertEqual(2, len(skeleton_container.skeleton_list))
+
+
+
+
+
+
+
+
+
 
 
 
