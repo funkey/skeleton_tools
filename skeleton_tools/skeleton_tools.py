@@ -41,7 +41,6 @@ class SkeletonContainer(object):
                                                 outputfilename)
 
     def read_from_knossos_nml(self, inputfilename, voxel_size=None):
-
         skeleton_list = knossos_utils.from_nml_to_nx_skeletons(inputfilename)
         if voxel_size is not None:
             for skeleton in skeleton_list:
@@ -790,7 +789,6 @@ class Skeleton(object):
 
             if size < size_thres:
                 seg_col_unique.remove(seg)
-
         if return_objectdict:
             return np.asarray(seg_col_unique), object_dict
         else:
@@ -807,8 +805,8 @@ def dda_round(x):
 
 class DDA3:
     def __init__(self, start, end, scaling=np.array([1, 1, 1])):
-        assert (start.dtype == int)
-        assert (end.dtype == int)
+        assert np.array_equal(start - np.floor(start), np.zeros(len(start)))
+        assert np.array_equal(end - np.floor(end), np.zeros(len(end)))
 
         self.start = (start * scaling).astype(float)
         self.end = (end * scaling).astype(float)
@@ -821,14 +819,12 @@ class DDA3:
         for step in range(int(self.max_length)):
             self.line.append(dda_round((step + 1) * self.dv + self.start))
 
-        assert (np.all(self.line[-1] == self.end))
+        # assert (np.all(self.line[-1] == self.end))
 
         for n in xrange(len(self.line) - 1):
             assert (np.linalg.norm(self.line[n + 1] - self.line[n]) <= np.sqrt(3))
 
         return self.line
-
-
 
 
 
