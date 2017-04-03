@@ -93,6 +93,24 @@ class SkeletonContainer(object):
                 mask[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = 1
         return mask
 
+    def to_volume(self, shape, thickness=4):
+        """ Writes all skeletons into a single volume.
+        Parameters
+        ----------
+        mask_shape: shape of the newly created volume.
+        thickness: the length of the cube each node is represented with in the volume. Set to 1 if only the voxel
+        position itself should be marked.
+        """
+        thickness //= 2
+        volume = np.zeros(shape, dtype=np.uint32)
+        for skeleton in self.skeleton_list:
+            for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
+                assert skeleton.seg_id > 0, "Skeleton with id < 0 (" + str(skeleton.seg_id) + ") encountered"
+                voxel_pos = node_dic['position'].voxel
+                x, y, z = voxel_pos
+                volume[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = skeleton.seg_id
+        return volume
+
     def split_into_cc(self):
         """ Creates for each connected component in the nx_graphs a new skeleton instance.
         """
