@@ -114,6 +114,9 @@ def from_nml_to_nx_skeletons(filename, scaling=[1, 1, 1]):
 
 def from_thing_to_nx_skeleton(annotation_elem):
 
+    thing_id = parse_attributes(annotation_elem, [["id", int]])
+    assert thing_id is not None
+
     # Read nodes
     node_elems = annotation_elem.getElementsByTagName("node")
     point_dic = {}
@@ -134,6 +137,7 @@ def from_thing_to_nx_skeleton(annotation_elem):
 
     skeleton = skeleton_tools.Skeleton()
     skeleton.initialize_from_datapoints(point_dic, True, edgelist=edge_list, datapoints_type='dic')
+    skeleton.seg_id = thing_id
 
     return skeleton
 

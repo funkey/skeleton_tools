@@ -97,12 +97,14 @@ class SkeletonContainer(object):
         """ Creates for each connected component in the nx_graphs a new skeleton instance.
         """
         new_skeleton_list = []
+        next_seg_id = 1
         for skeleton in self.skeleton_list:
             graph = skeleton.nx_graph
             subgraphs = nx.connected_component_subgraphs(graph)
             for subgraph in subgraphs:
-                new_skeleton = Skeleton(nx_graph=subgraph, voxel_size=skeleton.voxel_size)
+                new_skeleton = Skeleton(nx_graph=subgraph, voxel_size=skeleton.voxel_size, seg_id=next_seg_id)
                 new_skeleton_list.append(new_skeleton)
+                next_seg_id += 1
         self.skeleton_list = new_skeleton_list
 
 
