@@ -14,9 +14,9 @@ def from_nx_graphs_to_knossos(nx_skeletons, filename, comment=False):
         f = open(filename, "w")
         f.write(doc)
         f.close()
-        print "file written to ", filename
+        print("file written to ", filename)
     except:
-        print "Couldn't open file for writing."
+        print("Couldn't open file for writing.")
 
 
 def to_xml_string(nx_skeletons, comment=False):
@@ -71,7 +71,8 @@ def skeleton_to_nml(doc, annotations_elem, annotation_ID, skeleton, comments_ele
         # Knossos starts counting at one
         build_attributes(node_elem, [['x', node_pos[0] + add_coord_num], ['y', node_pos[1] + add_coord_num],
                                      ['z', node_pos[2] + add_coord_num],
-                                     ['id', node_id + 1 + node_id_offset], ['radius', radius]])
+                                     ['id', node_id + 1 + node_id_offset], ['radius', radius], ['inVp', 0], ['inMag', 0], ['time','123']]
+                                    ) # x, y, z, inVp, inMag, time, ID, radius
         if 'comment' in feature_dic:
             node_comment = feature_dic['comment']
             comment_element = doc.createElement('comment')
@@ -121,7 +122,7 @@ def from_thing_to_nx_skeleton(annotation_elem):
         point, id = from_node_elem_to_node(node_elem)
         point = point
         if id in point_dic:
-            print 'Warning: ID already exists'
+            print('Warning: ID already exists')
         else:
             point_dic[id] = point
 
