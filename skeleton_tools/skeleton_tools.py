@@ -16,6 +16,7 @@ from scipy.spatial import KDTree
 import operator
 
 
+
 class VP_type(object):
     def __init__(self, voxel=None, phys=None):
         self.voxel = voxel
@@ -107,6 +108,8 @@ class SkeletonContainer(object):
 
 
 
+
+
 class Skeleton(object):
     def __init__(self, identifier=None, voxel_size=None, seg_id=None, nx_graph=None):
 
@@ -169,7 +172,7 @@ class Skeleton(object):
                 else:
                     self.add_node(node_id, pos_phys=pos)
         else:
-            print 'provided datapoints_type not supported'
+            print('provided datapoints_type not supported')
 
 
         if edgelist is not None:
@@ -186,6 +189,22 @@ class Skeleton(object):
        
         self.nx_graph.add_edges_from(l1_graph.edges)
 
+    def initialize_from_skeletopyze(self, funkey_skeleton):
+        """ Converts funkey_skeleton (teasar skeletonization result from skeletopyze library) into networkx skeleton.
+
+        Parameters
+        ----------
+            funkey_skeleton: a skeleton of funkey:skeletopyze class
+        """
+
+        for node_id in funkey_skeleton.nodes():
+            loc = funkey_skeleton.locations(node_id)
+            pos_voxel = np.array((loc.x(), loc.y(), loc.z()))
+            self.add_node(node_id, pos_voxel=pos_voxel)
+            self.nx_graph.node[node_id]['diameter'] = funkey_skeleton.diameters(node_id)
+
+        for edge in funkey_skeleton.edges():
+            self.add_edge(edge.u, edge.v)
 
     def add_node(self, node_id, pos_voxel=None, pos_phys=None):
         """ Add node to exisiting skeleton
@@ -488,9 +507,9 @@ class Skeleton(object):
         elif VP_type == 'phys':
             self.fill_in_node_features('position_phys')
         if step_size > 1 or VP_type == 'phys':
-            print 'using old interpolation function, new (better) interpolation function only implemented for ' \
+            print('using old interpolation function, new (better) interpolation function only implemented for ' \
                   'voxel_size = 1 and VP_type = voxel, parameter set to ' \
-                  'voxel_size = %i and VP_type = %s' %(step_size, VP_type)
+                  'voxel_size = %i and VP_type = %s' %(step_size, VP_type))
 
         # Get the list of all edges, before additional edges are inserted
         edges = self.nx_graph.edges()
@@ -800,9 +819,6 @@ class Skeleton(object):
             return np.asarray(seg_col_unique), object_dict
         else:
             return np.asarray(seg_col_unique)
-
-
-
 
 
 
