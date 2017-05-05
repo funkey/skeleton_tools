@@ -73,9 +73,9 @@ class SkeletonContainer(object):
                 overwrite_existing = False
             else:
                 overwrite_existing = all_overwrite_existing[nr_skeleton]
-
-            skeleton.write_to_itk(outputfilename=outputfilename + '_' + str(skeleton.identifier),
-                                  diameter_per_node=diameter_per_node, overwrite_existing=overwrite_existing)
+            skeleton.write_to_itk(outputfilename=outputfilename + '%0.5i' %skeleton.identifier,
+                                  diameter_per_node=diameter_per_node,
+                                  overwrite_existing=overwrite_existing, skeleton_id=skeleton.identifier)
 
     def from_skeletons_to_binary_mask(self, mask_shape, thickness=4):
         """ Writes all skeletons into a single volume (as a binary mask).
@@ -93,6 +93,18 @@ class SkeletonContainer(object):
                 x, y, z = voxel_pos
                 mask[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = 1
         return mask
+
+    def from_skeletons_to_labeled_volume(self, volume, thickness=0):
+        thickness //= 2
+        if thickness == 0:
+            thickness = 1
+        new_volume = np.zeros_like(volume)
+        for skeleton in self.skeleton_list:
+            for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
+                voxel_pos = node_dic['position'].voxel
+                x, y, z = voxel_pos
+                new_volume[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = volume[x, y, z]
+        return new_volume
 
     def split_into_cc(self):
         """ Creates for each connected component in the nx_graphs a new skeleton instance.
@@ -741,6 +753,22 @@ class Skeleton(object):
                 self.nx_graph.node[node_id]['position'].phys += offset
                 self.nx_graph.node[node_id]['position'].voxel = None
 
+    def transpose_skeleton(self):
+        if self.voxel_size is not None:
+            old_voxsize = self.voxel_size
+            self.voxel_size = np.array([old_voxsize[2], old_voxsize[1], old_voxsize[0]])
+        for node_id in self.nx_graph.nodes():
+            if self.nx_graph.node[node_id]['position'].phys is not None:
+                old_pos = self.nx_graph.node[node_id]['position'].phys
+                self.nx_graph.node[node_id]['position'].phys = np.array([old_pos[2], old_pos[1], old_pos[0]])
+
+            if self.nx_graph.node[node_id]['position'].voxel is not None:
+                old_pos = self.nx_graph.node[node_id]['position'].voxel
+                self.nx_graph.node[node_id]['position'].voxel = np.array([old_pos[2], old_pos[1], old_pos[0]])
+
+
+
+
     def crop_graph_to_bb(self, bb_min, bb_max):
         removed_node_counter = 0
         num_of_nodes = self.nx_graph.number_of_nodes()
@@ -751,6 +779,19 @@ class Skeleton(object):
                 removed_node_counter += 1
 
         assert num_of_nodes-self.nx_graph.number_of_nodes() == removed_node_counter
+
+    def crop_with_binmask(self, bin_mask):
+        # True --> node remains, False --> node is removed
+        removed_node_counter = 0
+        num_of_nodes = self.nx_graph.number_of_nodes()
+        for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
+            voxel_pos = node_attr['position'].voxel
+            if not bin_mask[voxel_pos[0], voxel_pos[1], voxel_pos[2]]:
+                self.nx_graph.remove_node(node_id)
+                removed_node_counter += 1
+        print 'skeleton_tools: removed nodes %i from total of %i' %(removed_node_counter, num_of_nodes)
+
+
 
 
     def check_point_inside_bb(self, point, bb_min, bb_max):
