@@ -86,7 +86,7 @@ class SkeletonContainer(object):
         position itself should be marked.
         """
         thickness //= 2
-        mask = np.zeros(mask_shape, dtype=np.uint8)
+        mask = np.zeros(mask_shape.astype(np.int), dtype=np.uint8)
         for skeleton in self.skeleton_list:
             for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
                 voxel_pos = node_dic['position'].voxel
@@ -117,6 +117,30 @@ class SkeletonContainer(object):
                 new_skeleton = Skeleton(nx_graph=subgraph, voxel_size=skeleton.voxel_size)
                 new_skeleton_list.append(new_skeleton)
         self.skeleton_list = new_skeleton_list
+
+    def get_datapoints(self, VP_type):
+        datapoints = []
+        for skeleton in self.skeleton_list:
+            dtps = skeleton.from_nx_skeleton_to_datapoints(VP_type)
+            datapoints.append(dtps)
+        all_datapoints = np.hstack(datapoints)
+        return all_datapoints
+
+
+    def get_bounding_box(self):
+        dtps = self.get_datapoints('voxel')
+        bb_low = np.min(dtps[:, 0:3], axis=0)
+        bb_upper = np.max(dtps[:, 0:3], axis=0)
+        return bb_low, bb_upper
+
+    def calculate_total_phys_length(self):
+        path_length = 0
+        for skeleton in self.skeleton_list:
+            skeleton.fill_in_node_features('position_phys')
+            path_length += skeleton.calculate_total_phys_length()
+        return path_length
+
+
 
 
 
@@ -791,16 +815,19 @@ class Skeleton(object):
 
         Notes
         -------
-        Nodes that are located outside of the volume are not removed. To crop away everything, bin mask has to be as
-        large as the bounding box of the skeletons. Also the skeleton might be split in multiple connected
+        Nodes that are located outside of the volume are removed. Also the skeleton might be split in multiple connected
         components after cropping.
         """
-        
+
         removed_node_counter = 0
         num_of_nodes = self.nx_graph.number_of_nodes()
         for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
             voxel_pos = node_attr['position'].voxel
-            if self.check_point_inside_bb(voxel_pos, [0, 0, 0], bin_mask.shape):
+            if not self.check_point_inside_bb(voxel_pos, [0, 0, 0], bin_mask.shape):
+                self.nx_graph.remove_node(node_id)
+                removed_node_counter += 1
+            else:
+
                 if not bin_mask[voxel_pos[0], voxel_pos[1], voxel_pos[2]]:
                     self.nx_graph.remove_node(node_id)
                     removed_node_counter += 1
