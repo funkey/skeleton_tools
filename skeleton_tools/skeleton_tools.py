@@ -780,16 +780,32 @@ class Skeleton(object):
 
         assert num_of_nodes-self.nx_graph.number_of_nodes() == removed_node_counter
 
-    def crop_with_binmask(self, bin_mask):
-        # True --> node remains, False --> node is removed
+    def crop_with_binmask(self, bin_mask, verbose=False):
+        """
+        Crops nodes based on a binary mask.
+
+        Parameters
+        ----------
+            bin_mask:  ndarray
+                binary volume, True --> node remains, False --> node is removed.
+
+        Notes
+        -------
+        Nodes that are located outside of the volume are not removed. To crop away everything, bin mask has to be as
+        large as the bounding box of the skeletons. Also the skeleton might be split in multiple connected
+        components after cropping.
+        """
+        
         removed_node_counter = 0
         num_of_nodes = self.nx_graph.number_of_nodes()
         for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
             voxel_pos = node_attr['position'].voxel
-            if not bin_mask[voxel_pos[0], voxel_pos[1], voxel_pos[2]]:
-                self.nx_graph.remove_node(node_id)
-                removed_node_counter += 1
-        print 'skeleton_tools: removed nodes %i from total of %i' %(removed_node_counter, num_of_nodes)
+            if self.check_point_inside_bb(voxel_pos, [0, 0, 0], bin_mask.shape):
+                if not bin_mask[voxel_pos[0], voxel_pos[1], voxel_pos[2]]:
+                    self.nx_graph.remove_node(node_id)
+                    removed_node_counter += 1
+        if verbose:
+            print 'skeleton_tools: removed nodes %i from total of %i' %(removed_node_counter, num_of_nodes)
 
 
 
