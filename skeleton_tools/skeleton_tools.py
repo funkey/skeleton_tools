@@ -16,6 +16,7 @@ from scipy.spatial import KDTree
 import operator
 
 
+
 class VP_type(object):
     def __init__(self, voxel=None, phys=None):
         self.voxel = voxel
@@ -72,9 +73,9 @@ class SkeletonContainer(object):
                 overwrite_existing = False
             else:
                 overwrite_existing = all_overwrite_existing[nr_skeleton]
-
-            skeleton.write_to_itk(outputfilename=outputfilename + '_' + str(skeleton.identifier),
-                                  diameter_per_node=diameter_per_node, overwrite_existing=overwrite_existing)
+            skeleton.write_to_itk(outputfilename=outputfilename + '%0.5i' %skeleton.identifier,
+                                  diameter_per_node=diameter_per_node,
+                                  overwrite_existing=overwrite_existing, skeleton_id=skeleton.identifier)
 
     def from_skeletons_to_binary_mask(self, mask_shape, thickness=4):
         """ Writes all skeletons into a single volume (as a binary mask).
@@ -85,7 +86,7 @@ class SkeletonContainer(object):
         position itself should be marked.
         """
         thickness //= 2
-        mask = np.zeros(mask_shape, dtype=np.uint8)
+        mask = np.zeros(mask_shape.astype(np.int), dtype=np.uint8)
         for skeleton in self.skeleton_list:
             for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
                 voxel_pos = node_dic['position'].voxel
@@ -111,6 +112,18 @@ class SkeletonContainer(object):
                 volume[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = skeleton.seg_id
         return volume
 
+    def from_skeletons_to_labeled_volume(self, volume, thickness=0):
+        thickness //= 2
+        if thickness == 0:
+            thickness = 1
+        new_volume = np.zeros_like(volume)
+        for skeleton in self.skeleton_list:
+            for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
+                voxel_pos = node_dic['position'].voxel
+                x, y, z = voxel_pos
+                new_volume[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = volume[x, y, z]
+        return new_volume
+
     def split_into_cc(self):
         """ Creates for each connected component in the nx_graphs a new skeleton instance.
         """
@@ -124,6 +137,32 @@ class SkeletonContainer(object):
                 new_skeleton_list.append(new_skeleton)
                 next_seg_id += 1
         self.skeleton_list = new_skeleton_list
+
+    def get_datapoints(self, VP_type):
+        datapoints = []
+        for skeleton in self.skeleton_list:
+            dtps = skeleton.from_nx_skeleton_to_datapoints(VP_type)
+            datapoints.append(dtps)
+        all_datapoints = np.hstack(datapoints)
+        return all_datapoints
+
+
+    def get_bounding_box(self):
+        dtps = self.get_datapoints('voxel')
+        bb_low = np.min(dtps[:, 0:3], axis=0)
+        bb_upper = np.max(dtps[:, 0:3], axis=0)
+        return bb_low, bb_upper
+
+    def calculate_total_phys_length(self):
+        path_length = 0
+        for skeleton in self.skeleton_list:
+            skeleton.fill_in_node_features('position_phys')
+            path_length += skeleton.calculate_total_phys_length()
+        return path_length
+
+
+
+
 
 
 
@@ -189,7 +228,7 @@ class Skeleton(object):
                 else:
                     self.add_node(node_id, pos_phys=pos)
         else:
-            print 'provided datapoints_type not supported'
+            print('provided datapoints_type not supported')
 
 
         if edgelist is not None:
@@ -206,6 +245,22 @@ class Skeleton(object):
        
         self.nx_graph.add_edges_from(l1_graph.edges)
 
+    def initialize_from_skeletopyze(self, funkey_skeleton):
+        """ Converts funkey_skeleton (teasar skeletonization result from skeletopyze library) into networkx skeleton.
+
+        Parameters
+        ----------
+            funkey_skeleton: a skeleton of funkey:skeletopyze class
+        """
+
+        for node_id in funkey_skeleton.nodes():
+            loc = funkey_skeleton.locations(node_id)
+            pos_voxel = np.array((loc.x(), loc.y(), loc.z()))
+            self.add_node(node_id, pos_voxel=pos_voxel)
+            self.nx_graph.node[node_id]['diameter'] = funkey_skeleton.diameters(node_id)
+
+        for edge in funkey_skeleton.edges():
+            self.add_edge(edge.u, edge.v)
 
     def add_node(self, node_id, pos_voxel=None, pos_phys=None):
         """ Add node to exisiting skeleton
@@ -508,9 +563,9 @@ class Skeleton(object):
         elif VP_type == 'phys':
             self.fill_in_node_features('position_phys')
         if step_size > 1 or VP_type == 'phys':
-            print 'using old interpolation function, new (better) interpolation function only implemented for ' \
+            print('using old interpolation function, new (better) interpolation function only implemented for ' \
                   'voxel_size = 1 and VP_type = voxel, parameter set to ' \
-                  'voxel_size = %i and VP_type = %s' %(step_size, VP_type)
+                  'voxel_size = %i and VP_type = %s' %(step_size, VP_type))
 
         # Get the list of all edges, before additional edges are inserted
         edges = self.nx_graph.edges()
@@ -742,6 +797,22 @@ class Skeleton(object):
                 self.nx_graph.node[node_id]['position'].phys += offset
                 self.nx_graph.node[node_id]['position'].voxel = None
 
+    def transpose_skeleton(self):
+        if self.voxel_size is not None:
+            old_voxsize = self.voxel_size
+            self.voxel_size = np.array([old_voxsize[2], old_voxsize[1], old_voxsize[0]])
+        for node_id in self.nx_graph.nodes():
+            if self.nx_graph.node[node_id]['position'].phys is not None:
+                old_pos = self.nx_graph.node[node_id]['position'].phys
+                self.nx_graph.node[node_id]['position'].phys = np.array([old_pos[2], old_pos[1], old_pos[0]])
+
+            if self.nx_graph.node[node_id]['position'].voxel is not None:
+                old_pos = self.nx_graph.node[node_id]['position'].voxel
+                self.nx_graph.node[node_id]['position'].voxel = np.array([old_pos[2], old_pos[1], old_pos[0]])
+
+
+
+
     def crop_graph_to_bb(self, bb_min, bb_max):
         removed_node_counter = 0
         num_of_nodes = self.nx_graph.number_of_nodes()
@@ -752,6 +823,38 @@ class Skeleton(object):
                 removed_node_counter += 1
 
         assert num_of_nodes-self.nx_graph.number_of_nodes() == removed_node_counter
+
+    def crop_with_binmask(self, bin_mask, verbose=False):
+        """
+        Crops nodes based on a binary mask.
+
+        Parameters
+        ----------
+            bin_mask:  ndarray
+                binary volume, True --> node remains, False --> node is removed.
+
+        Notes
+        -------
+        Nodes that are located outside of the volume are removed. Also the skeleton might be split in multiple connected
+        components after cropping.
+        """
+
+        removed_node_counter = 0
+        num_of_nodes = self.nx_graph.number_of_nodes()
+        for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
+            voxel_pos = node_attr['position'].voxel
+            if not self.check_point_inside_bb(voxel_pos, [0, 0, 0], bin_mask.shape):
+                self.nx_graph.remove_node(node_id)
+                removed_node_counter += 1
+            else:
+
+                if not bin_mask[voxel_pos[0], voxel_pos[1], voxel_pos[2]]:
+                    self.nx_graph.remove_node(node_id)
+                    removed_node_counter += 1
+        if verbose:
+            print 'skeleton_tools: removed nodes %i from total of %i' %(removed_node_counter, num_of_nodes)
+
+
 
 
     def check_point_inside_bb(self, point, bb_min, bb_max):
@@ -820,9 +923,6 @@ class Skeleton(object):
             return np.asarray(seg_col_unique), object_dict
         else:
             return np.asarray(seg_col_unique)
-
-
-
 
 
 
