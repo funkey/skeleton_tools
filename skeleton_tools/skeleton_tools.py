@@ -94,6 +94,24 @@ class SkeletonContainer(object):
                 mask[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = 1
         return mask
 
+    def to_volume(self, shape, thickness=4):
+        """ Writes all skeletons into a single volume.
+        Parameters
+        ----------
+        mask_shape: shape of the newly created volume.
+        thickness: the length of the cube each node is represented with in the volume. Set to 1 if only the voxel
+        position itself should be marked.
+        """
+        thickness //= 2
+        volume = np.zeros(shape, dtype=np.uint32)
+        for skeleton in self.skeleton_list:
+            for _, node_dic in skeleton.nx_graph.nodes_iter(data=True):
+                assert skeleton.seg_id > 0, "Skeleton with id < 0 (" + str(skeleton.seg_id) + ") encountered"
+                voxel_pos = node_dic['position'].voxel
+                x, y, z = voxel_pos
+                volume[x-thickness:x+thickness, y-thickness:y+thickness, z-thickness:z+thickness] = skeleton.seg_id
+        return volume
+
     def from_skeletons_to_labeled_volume(self, volume, thickness=0):
         thickness //= 2
         if thickness == 0:
@@ -110,12 +128,14 @@ class SkeletonContainer(object):
         """ Creates for each connected component in the nx_graphs a new skeleton instance.
         """
         new_skeleton_list = []
+        next_seg_id = 1
         for skeleton in self.skeleton_list:
             graph = skeleton.nx_graph
             subgraphs = nx.connected_component_subgraphs(graph)
             for subgraph in subgraphs:
-                new_skeleton = Skeleton(nx_graph=subgraph, voxel_size=skeleton.voxel_size)
+                new_skeleton = Skeleton(nx_graph=subgraph, voxel_size=skeleton.voxel_size, seg_id=next_seg_id)
                 new_skeleton_list.append(new_skeleton)
+                next_seg_id += 1
         self.skeleton_list = new_skeleton_list
 
     def get_datapoints(self, VP_type):
