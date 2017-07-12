@@ -126,17 +126,26 @@ class SkeletonContainer(object):
 
     def split_into_cc(self):
         """ Creates for each connected component in the nx_graphs a new skeleton instance.
+
+        Returns:
+
+            A dictionary mapping previous seg_ids to a list of new seg_ids.
         """
         new_skeleton_list = []
         next_seg_id = 1
+        seg_id_map = {}
         for skeleton in self.skeleton_list:
             graph = skeleton.nx_graph
             subgraphs = nx.connected_component_subgraphs(graph)
+            seg_id_map[skeleton.seg_id] = []
             for subgraph in subgraphs:
                 new_skeleton = Skeleton(nx_graph=subgraph, voxel_size=skeleton.voxel_size, seg_id=next_seg_id)
                 new_skeleton_list.append(new_skeleton)
+                seg_id_map[skeleton.seg_id].append(next_seg_id)
                 next_seg_id += 1
         self.skeleton_list = new_skeleton_list
+
+        return seg_id_map
 
     def get_datapoints(self, VP_type):
         datapoints = []
