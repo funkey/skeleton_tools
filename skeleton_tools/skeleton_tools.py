@@ -833,7 +833,7 @@ class Skeleton(object):
 
         assert num_of_nodes-self.nx_graph.number_of_nodes() == removed_node_counter
 
-    def crop_with_binmask(self, bin_mask, verbose=False):
+    def crop_with_binmask(self, bin_mask, offset=(0,0,0), verbose=False):
         """
         Crops nodes based on a binary mask.
 
@@ -841,6 +841,9 @@ class Skeleton(object):
         ----------
             bin_mask:  ndarray
                 binary volume, True --> node remains, False --> node is removed.
+
+            offset: tuple of int
+                An optional offset to provide for the binary mask.
 
         Notes
         -------
@@ -852,12 +855,12 @@ class Skeleton(object):
         num_of_nodes = self.nx_graph.number_of_nodes()
         for node_id, node_attr in self.nx_graph.nodes_iter(data=True):
             voxel_pos = node_attr['position'].voxel
-            if not self.check_point_inside_bb(voxel_pos, [0, 0, 0], bin_mask.shape):
+            if not self.check_point_inside_bb(voxel_pos, offset, tuple(o+s for o,s in zip(offset, bin_mask.shape))):
                 self.nx_graph.remove_node(node_id)
                 removed_node_counter += 1
             else:
 
-                if not bin_mask[voxel_pos[0], voxel_pos[1], voxel_pos[2]]:
+                if not bin_mask[voxel_pos[0]-offset[0], voxel_pos[1]-offset[1], voxel_pos[2]-offset[2]]:
                     self.nx_graph.remove_node(node_id)
                     removed_node_counter += 1
         if verbose:
